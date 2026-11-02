@@ -173,6 +173,38 @@ textarea.inp{min-height:84px;resize:vertical}
 .install .txt b{font-size:15px}
 .install .txt span{font-size:13px;color:var(--muted)}
 .install .btns{display:flex;flex-direction:column;gap:6px;flex:none}
+/* lock + setup screens */
+.top-btns{display:flex;gap:8px;flex:none}
+.sync{display:inline-flex;align-items:center;gap:6px;margin-left:6px;padding:1px 9px;border-radius:999px;background:rgba(255,255,255,.16);font-size:12px;font-weight:700;white-space:nowrap;vertical-align:1px}
+.sync i{width:7px;height:7px;border-radius:50%;background:#7CF0A8}
+.sync.wait i{background:#FFD36B}.sync.off i{background:#FF9C9C}.sync.local i{background:#CFE0FF}
+.gate{position:fixed;inset:0;z-index:80;background:var(--surface);overflow-y:auto;overscroll-behavior:contain}
+.gate-in{max-width:460px;margin:0 auto;min-height:100%;padding:calc(28px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+.gate-logo{width:72px;height:72px;border-radius:18px;align-self:center}
+.gate h2{font-size:24px;font-weight:800;text-align:center;line-height:1.2}
+.gate .lead{text-align:center;color:var(--muted)}
+.choice{display:grid;gap:4px;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:16px;color:var(--ink)}
+.choice b{font-size:16.5px}.choice span{font-size:14px;color:var(--muted)}
+.choice.main{border-color:var(--blue);background:var(--blue-soft)}
+.dots{display:flex;justify-content:center;gap:16px;margin:8px 0 2px}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--blue);display:block}
+.dots i.on{background:var(--blue)}
+.dots.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.pin-msg{min-height:22px;text-align:center;font-weight:650;font-size:14px;color:var(--bad)}
+.pin-msg.info{color:var(--muted)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:300px;width:100%;margin:0 auto}
+.pad button{height:64px;border-radius:18px;border:1px solid var(--line);background:var(--card);font-size:26px;font-weight:700;color:var(--ink)}
+.pad button.plain{background:transparent;border-color:transparent;font-size:14px;font-weight:650;color:var(--blue)}
+.pad button:active{background:var(--blue-soft)}
+.steps-list{display:grid;gap:12px;counter-reset:st;margin:0;padding:0;list-style:none}
+.steps-list li{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px 12px 52px;position:relative;font-size:14.5px}
+.steps-list li::before{counter-increment:st;content:counter(st);position:absolute;left:14px;top:12px;width:26px;height:26px;border-radius:50%;background:var(--blue);color:#FFFFFF;font-weight:800;font-size:14px;display:grid;place-items:center}
+.steps-list li > b:first-child{display:block;margin-bottom:2px}
+.code-box{width:100%;height:90px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--surface);resize:none}
+.qr-wrap{display:grid;justify-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.qr-wrap canvas{width:220px;height:220px;image-rendering:pixelated}
+.link-box{font-size:12.5px;color:var(--muted);word-break:break-all;text-align:center}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:#FFFFFF;padding:11px 16px;border-radius:12px;font-weight:650;font-size:14px;max-width:calc(100% - 32px);text-align:center;box-shadow:var(--shadow)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -184,9 +216,9 @@ textarea.inp{min-height:84px;resize:vertical}
     <div style="min-width:0">
       <p class="eyebrow">Attendance register</p>
       <h1 id="h-name">Pro Smash Badminton Academy</h1>
-      <p class="top-sub" id="h-sub"></p>
+      <p class="top-sub"><span id="h-sub"></span><span class="sync" id="sync" hidden></span></p>
     </div>
-    <button class="icon-btn" data-act="settings" aria-label="Settings and backup" id="btn-settings"></button>
+    <div class="top-btns"><button class="icon-btn" data-act="lock-now" aria-label="Lock the app" id="btn-lock"></button><button class="icon-btn" data-act="settings" aria-label="Settings and backup" id="btn-settings"></button></div>
   </div>
 </header>
 
@@ -245,6 +277,7 @@ textarea.inp{min-height:84px;resize:vertical}
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden><div class="sheet-in" id="sheet-in"></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <input type="file" id="restore-file" accept=".json,application/json" hidden>
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="Unlock"><div class="gate-in" id="gate-in"><p class="lead" style="margin-top:40vh">Opening…</p></div></div>
 
 <script>
 (function () {
@@ -279,7 +312,9 @@ var ICON = {
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   wa: '<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2Z"/><path d="M9.2 8.6c.2-.5.6-.5.9-.5l.6.1 1 2.1-.6.9c.5 1 1.3 1.8 2.3 2.3l.9-.6 2.1 1-.1.6c-.1.4-.6 1-1.4 1-2.6 0-5.8-3.1-5.8-5.8 0-.4 0-.8.1-1.1Z"/>',
   down: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', up: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
-  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+  lock: '<rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+  back: '<path d="M15 18l-6-6 6-6"/>'
 };
 function ic(n, s) { return '<svg viewBox="0 0 24 24" width="' + (s || 20) + '" height="' + (s || 20) + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
 
@@ -308,6 +343,370 @@ function save() {
 }
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 window.addEventListener('storage', function (e) { if (e.key === KEY) { try { D = fix(JSON.parse(e.newValue || 'null')); render(); } catch (x) {} } });
+
+/* ================= shared register (Google Sheet) + PIN lock ================= */
+var CONN_KEY = 'proSmashAttendance.conn', OUT_KEY = 'proSmashAttendance.outbox', LPIN_KEY = 'proSmashAttendance.localPin';
+var APP_URL = location.href.split('#')[0].split('?')[0];
+function readJSON(k, d) { try { var v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } }
+function writeJSON(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+var CONN = readJSON(CONN_KEY, null);          // {url, verifier:{salt,hash,ver}, sheetUrl, from, extra:{month:1}}
+var OUTBOX = readJSON(OUT_KEY, []);           // changes waiting to reach the Google Sheet
+var LPIN = readJSON(LPIN_KEY, null);          // {salt, hash} when used on this phone only
+var SES = {unlocked: false, token: null, pin: null, online: null, hiddenAt: 0, flushing: false};
+function shared() { return !!(CONN && CONN.url); }
+function saveConn() { writeJSON(CONN_KEY, CONN); }
+function saveOutbox() { writeJSON(OUT_KEY, OUTBOX.map(function (o) { return {action: o.action, data: o.data, id: o.id}; })); }
+function validExec(u) { return /^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[A-Za-z0-9_-]{20,}\/exec\/?$/.test(String(u || '').trim()); }
+
+/* PIN check that also works offline: a salted hash, never the PIN itself */
+function hashPin(pin, salt) {
+  var text = salt + ':' + pin;
+  if (window.crypto && crypto.subtle && window.TextEncoder) {
+    var enc = new TextEncoder(), round = function (s, n) {
+      return crypto.subtle.digest('SHA-256', enc.encode(s + salt)).then(function (buf) {
+        var h = Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        return n > 1 ? round(h, n - 1) : h;
+      });
+    };
+    return round(text, 500);
+  }
+  var h = 2166136261; for (var r = 0; r < 500; r++) for (var i = 0; i < text.length; i++) { h ^= text.charCodeAt(i) + r; h = Math.imul(h, 16777619) >>> 0; }
+  return Promise.resolve('f' + h.toString(16));
+}
+function makeVerifier(pin, ver) { var salt = rid('v'); return hashPin(pin, salt).then(function (h) { return {salt: salt, hash: h, ver: ver || 0}; }); }
+function checkVerifier(v, pin) { return v ? hashPin(pin, v.salt).then(function (h) { return h === v.hash; }) : Promise.resolve(false); }
+
+/* talking to the Google Sheet connector */
+function api(action, data, url) {
+  var ctl = window.AbortController ? new AbortController() : null, timer = ctl ? setTimeout(function () { ctl.abort(); }, 25000) : 0;
+  return fetch(url || CONN.url, {method: 'POST', body: JSON.stringify({action: action, token: SES.token, data: data || {}}), signal: ctl ? ctl.signal : undefined, redirect: 'follow'})
+    .then(function (res) { return res.text(); }, function () { throw {error: 'network'}; })
+    .then(function (txt) { clearTimeout(timer); try { return JSON.parse(txt); } catch (e) { throw {error: 'bad_link'}; } });
+}
+function getToken() {
+  if (!SES.pin) return Promise.reject({error: 'no_pin_in_memory'});
+  return api('unlock', {pin: SES.pin}).then(function (r) {
+    if (!r.ok) throw r;
+    SES.token = r.token;
+    if (!CONN.verifier || CONN.verifier.ver !== r.pinVer) return makeVerifier(SES.pin, r.pinVer).then(function (v) { CONN.verifier = v; saveConn(); });
+  });
+}
+
+/* every change is applied here first, then queued for the Google Sheet */
+function applyOp(op) {
+  var d = op.data;
+  if (op.action === 'mark') {
+    var day = D.att[d.date] = D.att[d.date] || {};
+    Object.keys(d.changes).forEach(function (k) { var v = d.changes[k]; if (v === 'P' || v === 'A') day[k] = v; else delete day[k]; });
+    if (!Object.keys(day).length) delete D.att[d.date];
+  } else if (op.action === 'saveStudents') {
+    d.students.forEach(function (s) { var i = D.students.findIndex(function (x) { return x.id === s.id; }); if (i >= 0) D.students[i] = Object.assign({}, D.students[i], s); else D.students.push(Object.assign({}, s)); });
+  } else if (op.action === 'removeStudent') {
+    D.students = D.students.filter(function (s) { return s.id !== d.id; });
+  } else if (op.action === 'saveSettings') {
+    D.academy = d.academy; D.batches = d.batches; D.lang = d.lang;
+  } else if (op.action === 'note') {
+    var nm = D.notes[d.month] = D.notes[d.month] || {}; if (d.text) nm[d.sid] = d.text; else delete nm[d.sid];
+  } else if (op.action === 'sent') {
+    (D.sent[d.month] = D.sent[d.month] || {})[d.sid] = d.date;
+  }
+}
+function act(action, data) {
+  var op = {action: action, data: data, id: rid('o')};
+  applyOp(op); save();
+  if (!shared()) return;
+  var last = OUTBOX[OUTBOX.length - 1];
+  if (action === 'mark' && last && last.action === 'mark' && !last.inflight && last.data.date === data.date) Object.assign(last.data.changes, data.changes);
+  else {
+    if (action === 'note') OUTBOX = OUTBOX.filter(function (o) { return o.inflight || !(o.action === 'note' && o.data.month === data.month && o.data.sid === data.sid); });
+    OUTBOX.push(op);
+  }
+  saveOutbox(); flushSoon(); updateSync();
+}
+var flushTimer;
+function flushSoon(ms) { clearTimeout(flushTimer); flushTimer = setTimeout(flush, ms == null ? 700 : ms); }
+function flush() {
+  if (SES.flushing || !shared() || !SES.unlocked || !OUTBOX.length) { updateSync(); return Promise.resolve(); }
+  SES.flushing = true; updateSync();
+  var busy = 0;
+  function step() {
+    if (!OUTBOX.length) return Promise.resolve();
+    var op = OUTBOX[0]; op.inflight = true;
+    return api(op.action, op.data).then(function (r) {
+      if (r.ok) { OUTBOX.shift(); saveOutbox(); SES.online = true; return step(); }
+      if (r.error === 'auth') { SES.token = null; return getToken().then(step); }
+      if (r.error === 'busy' && busy++ < 3) return new Promise(function (ok) { setTimeout(ok, 1500); }).then(step);
+      OUTBOX.shift(); saveOutbox(); toast('One change couldn’t be saved online (' + r.error + ').'); return step();
+    });
+  }
+  var start = SES.token ? Promise.resolve() : getToken();
+  return start.then(step).then(function () { SES.online = true; }, function (e) {
+    if (e && e.error === 'network') SES.online = false;
+    else if (e && (e.error === 'wrong' || e.error === 'no_pin')) lockApp(e.error === 'no_pin' ? 'The PIN was reset. Create a new PIN.' : 'The PIN was changed. Enter the new PIN.');
+  }).then(function () {
+    OUTBOX.forEach(function (o) { delete o.inflight; });
+    SES.flushing = false; updateSync();
+    if (OUTBOX.length && SES.online) flushSoon(3000);
+  });
+}
+function pull() {
+  if (!shared() || !SES.unlocked) return Promise.resolve();
+  var from = addMonths(CUR, -2);
+  var go = function () { return api('load', {from: from}); };
+  return (SES.token ? go() : getToken().then(go)).then(function (r) {
+    if (!r.ok && r.error === 'auth') { SES.token = null; return getToken().then(go); }
+    return r;
+  }).then(function (r) {
+    if (!r || !r.ok) return;
+    SES.online = true;
+    var extra = CONN.extra || {}, att = {}, notes = {}, sent = {};
+    Object.keys(D.att).forEach(function (k) { if (k.slice(0, 7) < r.from && extra[k.slice(0, 7)]) att[k] = D.att[k]; });
+    ['notes', 'sent'].forEach(function (key) { Object.keys(D[key]).forEach(function (m) { if (m < r.from && extra[m]) (key === 'notes' ? notes : sent)[m] = D[key][m]; }); });
+    D.academy = r.academy || D.academy; D.batches = r.batches || []; D.lang = r.lang || 'en';
+    D.students = (r.students || []).map(function (s) { return {id: s.id, name: s.name, batch: s.batch, parentName: s.parentName, phone: s.phone, joined: s.joined}; });
+    D.att = Object.assign(att, r.att || {}); D.notes = Object.assign(notes, r.notes || {}); D.sent = Object.assign(sent, r.sent || {});
+    OUTBOX.forEach(applyOp);
+    CONN.sheetUrl = r.sheetUrl; CONN.from = r.from; saveConn(); save();
+    render(); if (U.sheet && U.sheet.type !== 'student' && U.sheet.type !== 'many' && U.sheet.type !== 'settings') renderSheet();
+  }, function (e) { if (e && e.error === 'network') SES.online = false; else if (e && (e.error === 'wrong' || e.error === 'no_pin')) lockApp(e.error === 'no_pin' ? 'The PIN was reset. Create a new PIN.' : 'The PIN was changed. Enter the new PIN.'); })
+    .then(updateSync);
+}
+var monthLoading = {};
+function needMonth(m) {
+  if (!shared() || !CONN.from || m >= CONN.from || (CONN.extra && CONN.extra[m])) return 'ready';
+  if (monthLoading[m]) return 'loading';
+  monthLoading[m] = true;
+  var go = function () { return api('attMonth', {month: m}); };
+  (SES.token ? go() : getToken().then(go)).then(function (r) {
+    if (!r.ok) throw r;
+    Object.keys(r.att || {}).forEach(function (k) { D.att[k] = r.att[k]; });
+    D.notes[m] = r.notes || {}; D.sent[m] = r.sent || {};
+    CONN.extra = CONN.extra || {}; CONN.extra[m] = 1; saveConn(); save();
+  }).catch(function () { toast('Connect to the internet to see ' + mLabel(m) + '.'); }).then(function () { monthLoading[m] = false; render(); });
+  return 'loading';
+}
+function updateSync() {
+  var el = $('#sync'); if (!el) return;
+  el.hidden = !SES.unlocked;
+  if (!shared()) { el.className = 'sync local'; el.innerHTML = '<i></i>This phone only'; return; }
+  var n = OUTBOX.length;
+  if (SES.online === false) { el.className = 'sync off'; el.innerHTML = '<i></i>Offline' + (n ? ' · ' + n + ' waiting' : ''); }
+  else if (n || SES.flushing) { el.className = 'sync wait'; el.innerHTML = '<i></i>Saving…'; }
+  else { el.className = 'sync'; el.innerHTML = '<i></i>Synced'; }
+}
+window.addEventListener('online', function () { SES.online = null; flushSoon(200); pull(); });
+window.addEventListener('offline', function () { SES.online = false; updateSync(); });
+setInterval(function () { if (shared() && SES.unlocked && document.visibilityState === 'visible') { if (OUTBOX.length) flush(); else pull(); } }, 60000);
+
+/* ---------- the lock + setup screens ---------- */
+var G = {screen: 'loading', mode: 'enter', first: '', entry: '', msg: '', info: '', busy: false, code: '', importOffer: false};
+function showGate() { $('#gate').hidden = false; document.body.style.overflow = 'hidden'; renderGate(); }
+function hideGate() { $('#gate').hidden = true; document.body.style.overflow = ''; }
+function lockApp(msg) {
+  SES.unlocked = false; SES.token = null; SES.pin = null; closeSheet();
+  G.screen = 'pin'; G.mode = 'enter'; G.entry = ''; G.first = ''; G.msg = msg || ''; G.info = '';
+  if (msg && /reset/i.test(msg)) G.mode = 'create';
+  showGate(); updateSync();
+}
+function gateLogo() { return '<img class="gate-logo" src="icon-192.png" alt="" onerror="this.remove()">'; }
+function renderGate() {
+  var el = $('#gate-in'), h = '';
+  if (G.screen === 'welcome') {
+    h = gateLogo() + '<h2>Pro Smash Attendance</h2><p class="lead">How will you use this app?</p>' +
+      '<button class="choice main" data-act="g-owner"><b>I’m the owner. Set up the shared register.</b><span>One register for all staff, saved in a Google Sheet on your Gmail. Takes about 5 minutes on a computer.</span></button>' +
+      '<button class="choice" data-act="g-join"><b>I’m staff. I have an invite link.</b><span>Open the link the owner sent you on WhatsApp, or paste it here.</span></button>' +
+      '<button class="choice" data-act="g-local"><b>Use on this phone only</b><span>No sharing. Data stays on this phone, protected by a PIN.</span></button>';
+  } else if (G.screen === 'owner') {
+    h = '<button class="btn ghost small" data-act="g-welcome" style="align-self:flex-start">' + ic('back', 16) + ' Back</button>' +
+      '<h2>Set up the shared register</h2><p class="lead">Do this once, on a computer. Use your <b>second Gmail</b>.</p>' +
+      '<ol class="steps-list">' +
+      '<li><b>Open Google Apps Script</b>Sign in with your second Gmail. A new project opens.<br><a class="btn small" style="margin-top:8px" href="https://script.google.com/home/projects/create" target="_blank" rel="noopener">Open script.google.com</a></li>' +
+      '<li><b>Paste the connector code</b>Tap Copy, then in the editor press Ctrl+A and Ctrl+V, then Ctrl+S to save.<br><button class="btn small primary" style="margin-top:8px" data-act="g-copy-code">' + ic('copy', 16) + ' Copy connector code</button>' +
+        '<textarea class="code-box" id="g-code" readonly spellcheck="false" aria-label="Connector code" style="margin-top:8px">' + esc(G.code || 'Loading…') + '</textarea></li>' +
+      '<li><b>Deploy it</b>Click <b>Deploy → New deployment</b>, the gear icon → <b>Web app</b>. Set <b>Execute as: Me</b> and <b>Who has access: Anyone</b>. Click <b>Deploy</b>, then <b>Authorize access</b> → your Gmail → <b>Advanced</b> → <b>Go to … (unsafe)</b> → <b>Allow</b>.</li>' +
+      '<li><b>Paste the Web app link here</b>It starts with https://script.google.com/macros/s/ and ends with /exec.' +
+        '<input class="inp" id="g-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" style="margin-top:8px"></li></ol>' +
+      (G.msg ? '<p class="pin-msg" role="alert">' + esc(G.msg) + '</p>' : '') +
+      '<button class="btn primary block" data-act="g-connect"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'Connecting…' : 'Connect') + '</button>';
+  } else if (G.screen === 'join') {
+    h = '<button class="btn ghost small" data-act="g-welcome" style="align-self:flex-start">' + ic('back', 16) + ' Back</button>' +
+      gateLogo() + '<h2>Join your academy</h2><p class="lead">Paste the invite link the owner sent you. Then enter the academy PIN.</p>' +
+      '<input class="inp" id="g-join" placeholder="Paste the invite link" autocomplete="off">' +
+      (G.msg ? '<p class="pin-msg" role="alert">' + esc(G.msg) + '</p>' : '') +
+      '<button class="btn primary block" data-act="g-join-go"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'Connecting…' : 'Join') + '</button>';
+  } else if (G.screen === 'import') {
+    h = gateLogo() + '<h2>Move this phone’s data online?</h2><p class="lead">This phone already has <b>' + D.students.length + ' student' + (D.students.length === 1 ? '' : 's') + '</b> and <b>' + Object.keys(D.att).length + ' day' + (Object.keys(D.att).length === 1 ? '' : 's') + '</b> of attendance. Put them in the shared register so all staff see them.</p>' +
+      (G.msg ? '<p class="pin-msg" role="alert">' + esc(G.msg) + '</p>' : '') +
+      '<button class="btn primary block" data-act="g-import"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'Moving…' : 'Move it online') + '</button><button class="btn block" data-act="g-skip-import">Start with an empty register</button>';
+  } else if (G.screen === 'pin') {
+    var title = G.mode === 'create' ? 'Create a 4-digit PIN' : G.mode === 'confirm' ? 'Enter the same PIN again' : 'Enter PIN';
+    var sub = G.mode === 'enter' ? esc(D.academy || 'Pro Smash Attendance') : shared() ? 'Everyone on staff uses this PIN to open the app.' : 'You’ll enter this PIN every time you open the app.';
+    var dots = ''; for (var i = 0; i < 4; i++) dots += '<i class="' + (i < G.entry.length ? 'on' : '') + '"></i>';
+    var keys = ''; ['1', '2', '3', '4', '5', '6', '7', '8', '9'].forEach(function (k) { keys += '<button data-act="pin-key" data-v="' + k + '"' + (G.busy ? ' disabled' : '') + '>' + k + '</button>'; });
+    keys += '<button class="plain" data-act="pin-forgot">' + (G.mode === 'enter' ? 'Forgot?' : '') + '</button><button data-act="pin-key" data-v="0"' + (G.busy ? ' disabled' : '') + '>0</button><button class="plain" data-act="pin-del" aria-label="Delete">⌫</button>';
+    h = '<div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:14px">' + gateLogo() + '<h2>' + title + '</h2><p class="lead">' + sub + '</p>' +
+      '<div class="dots" id="dots" aria-label="' + G.entry.length + ' of 4 digits">' + dots + '</div>' +
+      '<p class="pin-msg' + (G.info ? ' info' : '') + '" role="alert">' + esc(G.busy ? 'Checking…' : (G.msg || G.info)) + '</p>' +
+      '<div class="pad">' + keys + '</div></div>';
+  } else if (G.screen === 'forgot') {
+    h = '<button class="btn ghost small" data-act="g-back-pin" style="align-self:flex-start">' + ic('back', 16) + ' Back</button><h2>Forgot the PIN?</h2>' +
+      (shared() ? '<ol class="steps-list"><li><b>Staff</b>Ask the owner for the PIN.</li><li><b>Owner</b>On a computer, open script.google.com with your second Gmail and open the Pro Smash project. Choose <b>resetPin</b> in the function list at the top and press <b>Run</b>. The next time anyone opens the app, it asks for a new PIN. No attendance is lost.</li></ol>'
+        : '<p class="lead">This phone’s PIN can’t be recovered. You can start fresh and restore your last backup file.</p><button class="btn danger-solid block" data-act="g-wipe">Delete everything on this phone and start fresh</button>');
+  } else h = '<p class="lead" style="margin-top:40vh">Opening…</p>';
+  el.innerHTML = h;
+  if (G.screen === 'owner' && !G.code) {
+    fetch('setup/Code.gs').then(function (r) { return r.ok ? r.text() : Promise.reject(); }).then(function (t) { G.code = t; var b = $('#g-code'); if (b) b.value = t; })
+      .catch(function () { var b = $('#g-code'); if (b) b.value = 'Couldn’t load the code. Open this app from its link (not as a file) and try again.'; });
+  }
+}
+function shakeDots() { var d = $('#dots'); if (d) { d.classList.remove('shake'); void d.offsetWidth; d.classList.add('shake'); } }
+function pinError(msg) { G.entry = ''; G.msg = msg; G.busy = false; renderGate(); shakeDots(); }
+function unlocked(pin) {
+  SES.unlocked = true; SES.pin = pin; G.entry = ''; G.msg = ''; G.busy = false;
+  if (G.importOffer) { G.importOffer = false; G.screen = 'import'; renderGate(); return; }
+  hideGate(); render(); updateSync();
+  if (shared()) pull().then(function () { return flush(); });
+}
+function submitPin(pin) {
+  if (G.mode === 'create') { G.first = pin; G.entry = ''; G.mode = 'confirm'; G.msg = ''; renderGate(); return; }
+  if (G.mode === 'confirm') {
+    if (pin !== G.first) { G.mode = 'create'; G.first = ''; pinError('The PINs didn’t match. Try again.'); return; }
+    G.busy = true; renderGate();
+    if (!shared()) { makeVerifier(pin, 0).then(function (v) { LPIN = v; writeJSON(LPIN_KEY, v); unlocked(pin); }); return; }
+    api('setPin', {pin: pin}).then(function (r) {
+      if (r.ok) { SES.token = r.token; return makeVerifier(pin, r.pinVer).then(function (v) { CONN.verifier = v; saveConn(); unlocked(pin); }); }
+      if (r.error === 'exists') { G.mode = 'enter'; pinError('A PIN is already set for this academy. Enter it.'); return; }
+      pinError('Couldn’t set the PIN (' + r.error + ').');
+    }, function () { G.mode = 'create'; pinError('No internet. Connect once to set the PIN.'); });
+    return;
+  }
+  G.busy = true; renderGate();
+  if (!shared()) { checkVerifier(LPIN, pin).then(function (ok) { if (ok) unlocked(pin); else pinError('Wrong PIN. Try again.'); }); return; }
+  api('unlock', {pin: pin}).then(function (r) {
+    if (r.ok) { SES.token = r.token; SES.online = true; return makeVerifier(pin, r.pinVer).then(function (v) { CONN.verifier = v; saveConn(); unlocked(pin); }); }
+    if (r.error === 'wrong') { pinError('Wrong PIN. ' + (r.left ? r.left + ' tries left before a 10-minute pause.' : 'The app pauses for 10 minutes now.')); return; }
+    if (r.error === 'locked') { pinError('Too many wrong tries. Wait 10 minutes, then try again.'); return; }
+    if (r.error === 'no_pin') { G.mode = 'create'; pinError('The PIN was reset. Create a new PIN.'); return; }
+    pinError('Couldn’t check the PIN (' + r.error + ').');
+  }, function () {
+    SES.online = false;
+    checkVerifier(CONN.verifier, pin).then(function (ok) {
+      if (ok) { toast('Offline. Your changes will be saved online when the internet is back.'); unlocked(pin); }
+      else pinError(CONN.verifier ? 'Wrong PIN. Try again.' : 'No internet. Connect once to unlock this phone.');
+    });
+  });
+}
+function connectTo(url, fromJoin) {
+  url = String(url || '').trim();
+  var m = url.match(/#join=(.+)$/); if (m) url = decodeURIComponent(m[1]);
+  if (!validExec(url)) { G.msg = fromJoin ? 'That isn’t a Pro Smash invite link. Ask the owner to send it again.' : 'That doesn’t look like a Web app link. It should end with /exec.'; renderGate(); return; }
+  G.busy = true; G.msg = ''; renderGate();
+  api('hello', {}, url).then(function (r) {
+    G.busy = false;
+    if (!r || !r.ok) { G.msg = 'The link answered, but not like the Pro Smash connector. Check you pasted the right code and deployed it.'; renderGate(); return; }
+    var hadLocal = D.students.length > 0 && !shared();
+    CONN = {url: url.replace(/\/$/, ''), extra: {}}; saveConn();
+    if (!r.hasPin) {
+      if (fromJoin) { CONN = null; saveConn(); G.msg = 'The owner hasn’t finished setup yet. Ask them to open the app and create the PIN.'; renderGate(); return; }
+      G.importOffer = hadLocal && r.empty;
+      G.screen = 'pin'; G.mode = 'create'; G.msg = ''; G.info = 'Connected to your Google Sheet.'; renderGate(); return;
+    }
+    G.importOffer = false;
+    if (hadLocal) { OUTBOX = []; saveOutbox(); }
+    G.screen = 'pin'; G.mode = 'enter'; G.msg = ''; G.info = r.academy ? 'Joining ' + r.academy : ''; renderGate();
+  }, function (e) {
+    G.busy = false;
+    G.msg = e && e.error === 'bad_link' ? 'That link didn’t answer correctly. In Deploy, make sure “Who has access” is set to Anyone.' : 'Couldn’t reach the link. Check the internet and the link, then try again.';
+    renderGate();
+  });
+}
+function inviteLink() { return APP_URL + '#join=' + CONN.url; }
+
+/* ---------- QR code (byte mode, level M, versions 1-10) for the staff invite ---------- */
+var QR_ECC = [-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26], QR_BLK = [-1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5];
+function qrMatrix(text) {
+  function mul(x, y) { var z = 0; for (var i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >>> 7) * 0x11D); z ^= ((y >>> i) & 1) * x; } return z & 255; }
+  function divisor(deg) { var r = []; for (var i = 0; i < deg - 1; i++) r.push(0); r.push(1); var root = 1; for (var k = 0; k < deg; k++) { for (var j = 0; j < deg; j++) { r[j] = mul(r[j], root); if (j + 1 < deg) r[j] ^= r[j + 1]; } root = mul(root, 2); } return r; }
+  function remainder(data, div) { var r = div.map(function () { return 0; }); data.forEach(function (b) { var f = b ^ r.shift(); r.push(0); div.forEach(function (c, i) { r[i] ^= mul(c, f); }); }); return r; }
+  function rawMods(v) { var r = (16 * v + 128) * v + 64; if (v >= 2) { var na = Math.floor(v / 7) + 2; r -= (25 * na - 10) * na - 55; if (v >= 7) r -= 36; } return r; }
+  var bytes = Array.prototype.slice.call(new TextEncoder().encode(text)), ver = 0;
+  for (var v = 1; v <= 10; v++) if (4 + 8 + bytes.length * 8 <= (Math.floor(rawMods(v) / 8) - QR_ECC[v] * QR_BLK[v]) * 8) { ver = v; break; }
+  if (!ver) return null;
+  var cap = (Math.floor(rawMods(ver) / 8) - QR_ECC[ver] * QR_BLK[ver]) * 8, bits = [];
+  function put(val, n) { for (var i = n - 1; i >= 0; i--) bits.push((val >>> i) & 1); }
+  put(4, 4); put(bytes.length, 8); bytes.forEach(function (b) { put(b, 8); });
+  put(0, Math.min(4, cap - bits.length)); put(0, (8 - bits.length % 8) % 8);
+  for (var pad = 0xEC; bits.length < cap; pad ^= 0xEC ^ 0x11) put(pad, 8);
+  var cw = []; for (var i = 0; i < bits.length; i += 8) { var b = 0; for (var j = 0; j < 8; j++) b = (b << 1) | bits[i + j]; cw.push(b); }
+  var nb = QR_BLK[ver], ecl = QR_ECC[ver], raw = Math.floor(rawMods(ver) / 8), nshort = nb - raw % nb, slen = Math.floor(raw / nb), dv = divisor(ecl), blocks = [], k = 0;
+  for (i = 0; i < nb; i++) { var dat = cw.slice(k, k + slen - ecl + (i < nshort ? 0 : 1)); k += dat.length; var ec = remainder(dat, dv); if (i < nshort) dat.push(0); blocks.push(dat.concat(ec)); }
+  var all = []; for (i = 0; i < blocks[0].length; i++) for (j = 0; j < blocks.length; j++) if (i !== slen - ecl || j >= nshort) all.push(blocks[j][i]);
+  var n = ver * 4 + 17, M = [], F = [];
+  for (i = 0; i < n; i++) { M.push(new Array(n).fill(false)); F.push(new Array(n).fill(false)); }
+  function setf(x, y, d) { M[y][x] = d; F[y][x] = true; }
+  for (i = 0; i < n; i++) { setf(6, i, i % 2 === 0); setf(i, 6, i % 2 === 0); }
+  [[3, 3], [n - 4, 3], [3, n - 4]].forEach(function (c) { for (var dy = -4; dy <= 4; dy++) for (var dx = -4; dx <= 4; dx++) { var x = c[0] + dx, y = c[1] + dy; if (x >= 0 && x < n && y >= 0 && y < n) { var dist = Math.max(Math.abs(dx), Math.abs(dy)); setf(x, y, dist !== 2 && dist !== 4); } } });
+  var pos = []; if (ver > 1) { var na = Math.floor(ver / 7) + 2, step = Math.floor((ver * 4 + na * 2 + 1) / (na * 2 - 2)) * 2; for (i = 0; i < na - 1; i++) pos.unshift(n - 7 - i * step); pos.unshift(6); }
+  pos.forEach(function (a, ai) { pos.forEach(function (b, bi) { var last = pos.length - 1; if ((ai === 0 && bi === 0) || (ai === 0 && bi === last) || (ai === last && bi === 0)) return; for (var dy = -2; dy <= 2; dy++) for (var dx = -2; dx <= 2; dx++) setf(a + dx, b + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1); }); });
+  function format(mask) {
+    var data = mask, rem = data; for (var q = 0; q < 10; q++) rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+    var fb = ((data << 10) | rem) ^ 0x5412, g = function (t) { return ((fb >>> t) & 1) === 1; };
+    for (var t = 0; t < 6; t++) setf(8, t, g(t));
+    setf(8, 7, g(6)); setf(8, 8, g(7)); setf(7, 8, g(8));
+    for (t = 9; t < 15; t++) setf(14 - t, 8, g(t));
+    for (t = 0; t < 8; t++) setf(n - 1 - t, 8, g(t));
+    for (t = 8; t < 15; t++) setf(8, n - 15 + t, g(t));
+    setf(8, n - 8, true);
+  }
+  format(0);
+  if (ver >= 7) { var rv = ver; for (i = 0; i < 12; i++) rv = (rv << 1) ^ ((rv >>> 11) * 0x1F25); var vb = (ver << 12) | rv; for (i = 0; i < 18; i++) { var bit = ((vb >>> i) & 1) === 1, a = n - 11 + i % 3, bb = Math.floor(i / 3); setf(a, bb, bit); setf(bb, a, bit); } }
+  var bi2 = 0;
+  for (var right = n - 1; right >= 1; right -= 2) {
+    if (right === 6) right = 5;
+    for (var vert = 0; vert < n; vert++) for (j = 0; j < 2; j++) {
+      var x = right - j, up = ((right + 1) & 2) === 0, y = up ? n - 1 - vert : vert;
+      if (!F[y][x] && bi2 < all.length * 8) { M[y][x] = ((all[bi2 >>> 3] >>> (7 - (bi2 & 7))) & 1) === 1; bi2++; }
+    }
+  }
+  var conds = [function (x, y) { return (x + y) % 2 === 0; }, function (x, y) { return y % 2 === 0; }, function (x) { return x % 3 === 0; }, function (x, y) { return (x + y) % 3 === 0; },
+    function (x, y) { return (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0; }, function (x, y) { return x * y % 2 + x * y % 3 === 0; },
+    function (x, y) { return (x * y % 2 + x * y % 3) % 2 === 0; }, function (x, y) { return ((x + y) % 2 + x * y % 3) % 2 === 0; }];
+  function applyMask(m) { for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) if (!F[y][x] && conds[m](x, y)) M[y][x] = !M[y][x]; }
+  function penalty() {
+    var p = 0, y, x, run, prev;
+    for (var dir = 0; dir < 2; dir++) for (y = 0; y < n; y++) { run = 0; prev = null; for (x = 0; x < n; x++) { var c = dir ? M[x][y] : M[y][x]; if (c === prev) run++; else { if (run >= 5) p += run - 2; run = 1; prev = c; } } if (run >= 5) p += run - 2; }
+    for (y = 0; y < n - 1; y++) for (x = 0; x < n - 1; x++) if (M[y][x] === M[y][x + 1] && M[y][x] === M[y + 1][x] && M[y][x] === M[y + 1][x + 1]) p += 3;
+    var dark = 0; M.forEach(function (r) { r.forEach(function (c) { if (c) dark++; }); });
+    return p + 10 * Math.floor(Math.abs(dark * 20 - n * n * 10) / (n * n));
+  }
+  var best = 0, bestP = Infinity;
+  for (var mk = 0; mk < 8; mk++) { applyMask(mk); format(mk); var pp = penalty(); if (pp < bestP) { bestP = pp; best = mk; } applyMask(mk); }
+  applyMask(best); format(best);
+  return M;
+}
+function drawQR(canvas, text) {
+  var M = qrMatrix(text); if (!M) return false;
+  var n = M.length, quiet = 4, sc = Math.floor(440 / (n + quiet * 2)), size = (n + quiet * 2) * sc, ctx = canvas.getContext('2d');
+  canvas.width = canvas.height = size;
+  ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, size, size); ctx.fillStyle = '#0F1B3D';
+  for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) if (M[y][x]) ctx.fillRect((x + quiet) * sc, (y + quiet) * sc, sc, sc);
+  return true;
+}
+function inviteSheet() {
+  var link = inviteLink(), msg = 'Pro Smash attendance app for staff:\n' + link + '\n\nOpen the link, tap Install, then enter the academy PIN (I’ll tell you the PIN separately).';
+  return head('Invite staff') +
+    '<p class="hint">Staff scan this code or open the link, install the app, and enter the PIN. Share the PIN separately, by call or in person.</p>' +
+    '<div class="qr-wrap"><canvas id="qr" aria-label="Invite QR code"></canvas><div class="link-box">' + esc(link) + '</div></div>' +
+    '<div class="btn-row"><a class="btn wa" style="flex:1" href="' + esc(waAny(msg)) + '" target="_blank" rel="noopener">' + ic('wa', 18) + ' Send on WhatsApp</a><button class="btn" style="flex:1" data-act="copy-invite">' + ic('copy', 16) + ' Copy link</button></div>' +
+    '<p class="hint">Only send this link to your staff. Anyone with the link and the PIN can open the register.</p>';
+}
+function pinChangeSheet() {
+  return head('Change PIN') + '<form id="f-pin" novalidate>' +
+    '<div class="field"><label class="lbl" for="cp-old">Current PIN</label><input class="inp num" id="cp-old" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" type="password"></div>' +
+    '<div class="field"><label class="lbl" for="cp-new">New 4-digit PIN</label><input class="inp num" id="cp-new" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" type="password"></div>' +
+    (shared() ? '<p class="hint">Everyone else will need the new PIN the next time they open the app.</p>' : '') +
+    '<div class="actions"><button type="button" class="btn" data-act="settings">Cancel</button><button type="submit" class="btn primary">Change PIN</button></div></form>';
+}
 
 /* ================= install as an app ================= */
 var INST = {
@@ -444,6 +843,7 @@ function render() {
   else if (U.tab === 'reg') renderReg();
   else if (U.tab === 'send') renderSend();
   else renderStudents();
+  updateSync();
 }
 function noStudents(where) {
   return '<div class="card empty"><h3>No students yet</h3><p>Add your students first. It takes a minute: paste all names at once with “Add many at once”.</p><button class="btn primary" data-act="go-students">Add students</button></div>';
@@ -462,6 +862,7 @@ function renderMark() {
   $('#d-next').disabled = d >= TODAY;
   var list = $('#mark-list'), sum = $('#mark-sum');
   if (!D.students.length) { $('#mark-chips').innerHTML = ''; sum.innerHTML = ''; list.innerHTML = noStudents(); return; }
+  if (needMonth(d.slice(0, 7)) === 'loading') { sum.innerHTML = ''; list.innerHTML = '<div class="card empty"><p>Loading ' + esc(mLabel(d.slice(0, 7))) + '…</p></div>'; return; }
   var roll = D.students.filter(function (s) { return onRoll(s, d); });
   $('#mark-chips').innerHTML = batchChips(U.mb, 'mb', true, countIn(roll));
   var rows = sorted(roll.filter(function (s) { return inBatch(s, U.mb); })), mk = marks(d), P = 0, A = 0;
@@ -486,6 +887,7 @@ function renderReg() {
   $('#r-label').textContent = mLabel(m);
   $('#r-next').disabled = m >= CUR;
   if (!D.students.length) { $('#reg-chips').innerHTML = ''; body.innerHTML = noStudents(); return; }
+  if (needMonth(m) === 'loading') { body.innerHTML = '<div class="card empty"><p>Loading ' + esc(mLabel(m)) + ' register…</p></div>'; return; }
   var roll = monthRoll(m);
   $('#reg-chips').innerHTML = batchChips(U.rb, 'rb', true, countIn(roll));
   var rows = sorted(roll.filter(function (s) { return inBatch(s, U.rb); }));
@@ -536,6 +938,7 @@ function renderSend() {
   $('#s-label').textContent = mLabel(m);
   $('#s-next').disabled = m >= CUR;
   if (!D.students.length) { $('#send-chips').innerHTML = ''; body.innerHTML = noStudents(); return; }
+  if (needMonth(m) === 'loading') { body.innerHTML = '<div class="card empty"><p>Loading ' + esc(mLabel(m)) + '…</p></div>'; return; }
   var roll = monthRoll(m), sent = D.sent[m] || {};
   $('#send-chips').innerHTML = batchChips(U.sb, 'sb', true, countIn(roll));
   var rows = sendRows(m), done = rows.filter(function (s) { return sent[s.id]; }).length, pct = rows.length ? Math.round(done * 100 / rows.length) : 0;
@@ -587,6 +990,8 @@ function renderSheet() {
   else if (sh.type === 'many') box.innerHTML = manyForm();
   else if (sh.type === 'send') box.innerHTML = sendSheet(byId(sh.id));
   else if (sh.type === 'settings') box.innerHTML = settingsSheet();
+  else if (sh.type === 'invite') { box.innerHTML = inviteSheet(); drawQR($('#qr'), inviteLink()); }
+  else if (sh.type === 'pin') box.innerHTML = pinChangeSheet();
   $('#sheet').scrollTop = top;
 }
 function studentForm(s) {
@@ -647,10 +1052,24 @@ function settingsSheet() {
     '<button type="button" class="btn small" data-act="add-batch" style="justify-self:start">+ Add batch</button></div>' +
     '<div class="field"><span class="lbl">WhatsApp message language</span><div class="seg" role="group"><button type="button" data-act="st-lang" data-v="en" id="st-en" aria-pressed="' + (D.lang !== 'hi') + '">English</button><button type="button" data-act="st-lang" data-v="hi" id="st-hi" aria-pressed="' + (D.lang === 'hi') + '">हिंदी</button></div></div>' +
     '<div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">Save settings</button></div></form>';
+  if (shared()) {
+    h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Shared register</h3>' +
+      '<p class="hint">All staff phones see the same register. Everything is saved in the Google Sheet “Pro Smash Attendance (data)” on the owner’s Gmail. ' +
+      (OUTBOX.length ? '<b>' + OUTBOX.length + ' change' + (OUTBOX.length === 1 ? '' : 's') + ' waiting to be saved online.</b>' : 'All changes are saved online.') + '</p>' +
+      '<div class="btn-row"><button class="btn primary" data-act="invite" style="flex:1">Invite staff</button>' + (CONN.sheetUrl ? '<a class="btn" style="flex:1" href="' + esc(CONN.sheetUrl) + '" target="_blank" rel="noopener">Open Google Sheet</a>' : '') + '</div></div>';
+  }
+  h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">PIN lock</h3>' +
+    '<p class="hint">The app asks for the 4-digit PIN every time it opens, and again after 2 minutes in the background.</p>' +
+    '<div class="btn-row"><button class="btn" data-act="change-pin" style="flex:1">Change PIN</button><button class="btn" data-act="lock-now" style="flex:1">' + ic('lock', 16) + ' Lock now</button></div></div>';
   h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Backup</h3>' +
-    '<p class="hint">Everything is saved inside this browser on this phone or computer. Download a backup every month and keep it in Google Drive or WhatsApp “Message yourself”. To move to a new phone, open this file there and restore the backup.</p>' +
-    '<p class="hint">Last backup: <b>' + (D.lastBackup ? esc(fmtDate(D.lastBackup)) : 'never') + '</b> · ' + D.students.length + ' students · ' + Object.keys(D.att).length + ' days of attendance · ' + Math.max(1, Math.round(bytes / 1024)) + ' KB of about 5,000 KB</p>' +
-    '<div class="btn-row"><button class="btn primary" data-act="backup" style="flex:1">' + ic('down', 18) + ' Download backup</button><button class="btn" data-act="restore" style="flex:1">' + ic('up', 18) + ' Restore backup</button></div></div>';
+    (shared() ? '<p class="hint">Your Google Sheet already keeps everything, and Google saves its version history. You can also download a copy here.</p>'
+      : '<p class="hint">Everything is saved inside this browser on this phone. Download a backup every month and keep it in Google Drive or WhatsApp “Message yourself”.</p>') +
+    '<p class="hint">Last backup: <b>' + (D.lastBackup ? esc(fmtDate(D.lastBackup)) : 'never') + '</b> · ' + D.students.length + ' students · ' + Object.keys(D.att).length + ' days of attendance' + (shared() ? '' : ' · ' + Math.max(1, Math.round(bytes / 1024)) + ' KB of about 5,000 KB') + '</p>' +
+    '<div class="btn-row"><button class="btn primary" data-act="backup" style="flex:1">' + ic('down', 18) + ' Download backup</button>' + (shared() ? '' : '<button class="btn" data-act="restore" style="flex:1">' + ic('up', 18) + ' Restore backup</button>') + '</div></div>';
+  if (!shared()) h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Share with staff</h3><p class="hint">Right now this phone keeps its own register. Connect a Google Sheet so all staff see and mark the same register.</p><button class="btn primary" data-act="g-owner-from-settings">Set up shared register</button></div>';
+  else h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">This phone</h3><p class="hint">Disconnecting removes the register from this phone only. Everything stays in the Google Sheet, and you can join again with the invite link.</p>' +
+    (U.confirm ? '<div class="confirm"><p><b>Disconnect this phone?</b>' + (OUTBOX.length ? ' ' + OUTBOX.length + ' changes haven’t been saved online yet and will be lost.' : '') + '</p><div class="btn-row"><button class="btn" data-act="cancel-confirm">Keep connected</button><button class="btn danger-solid" data-act="do-disconnect">Disconnect</button></div></div>'
+      : '<button class="btn danger" data-act="ask-disconnect">Disconnect this phone</button>') + '</div>';
   h += installCard();
   if (U.sheet && U.sheet.restore) {
     var r = U.sheet.restore;
@@ -662,9 +1081,19 @@ function batchRow(b) { return '<div class="batch-row" data-bid="' + esc(b.id) + 
 
 /* ================= actions ================= */
 function backup() {
-  D.lastBackup = TODAY; save();
-  if (download('pro-smash-attendance-backup-' + TODAY + '.json', JSON.stringify(D), 'application/json')) toast('Backup downloaded. Keep it somewhere safe.');
-  render(); if (U.sheet && U.sheet.type === 'settings') renderSheet();
+  function finish(data, note) {
+    D.lastBackup = TODAY; save();
+    data.lastBackup = TODAY;
+    if (download('pro-smash-attendance-backup-' + TODAY + '.json', JSON.stringify(data), 'application/json')) toast(note || 'Backup downloaded. Keep it somewhere safe.');
+    render(); if (U.sheet && U.sheet.type === 'settings') renderSheet();
+  }
+  if (!shared()) { finish(JSON.parse(JSON.stringify(D))); return; }
+  var go = function () { return api('exportAll', {}); };
+  toast('Preparing the full backup…');
+  (SES.token ? go() : getToken().then(go)).then(function (r) {
+    if (!r.ok) throw r;
+    finish(fix(r.data));
+  }).catch(function () { finish(JSON.parse(JSON.stringify(D)), 'Offline: downloaded what’s on this phone. Try again online for the full backup.'); });
 }
 document.addEventListener('click', function (e) {
   var t = e.target.closest('[data-act]'); if (!t) return;
@@ -686,15 +1115,14 @@ document.addEventListener('click', function (e) {
     case 'send-next': if (U.sm < CUR) U.sm = addMonths(U.sm, 1); render(); break;
     case 'reg-day': U.date = t.dataset.d; U.mb = U.rb; U.tab = 'mark'; render(); window.scrollTo(0, 0); break;
     case 'mark': {
-      var day = D.att[U.date] = D.att[U.date] || {};
-      if (day[id] === v) delete day[id]; else day[id] = v;
-      if (!Object.keys(day).length) delete D.att[U.date];
-      save(); render(); break;
+      var cur = marks(U.date)[id], ch = {}; ch[id] = cur === v ? '' : v;
+      act('mark', {date: U.date, changes: ch}); render(); break;
     }
     case 'all-present': {
-      var dd = D.att[U.date] = D.att[U.date] || {}, n = 0;
-      D.students.forEach(function (s) { if (onRoll(s, U.date) && inBatch(s, U.mb) && !dd[s.id]) { dd[s.id] = 'P'; n++; } });
-      save(); render(); toast(n + ' marked present'); break;
+      var dd = marks(U.date), chs = {}, n = 0;
+      D.students.forEach(function (s) { if (onRoll(s, U.date) && inBatch(s, U.mb) && !dd[s.id]) { chs[s.id] = 'P'; n++; } });
+      if (n) act('mark', {date: U.date, changes: chs});
+      render(); toast(n + ' marked present'); break;
     }
     case 'csv': {
       var nm = (U.rb === 'all' ? 'all-batches' : batchName(U.rb).toLowerCase().replace(/[^a-z0-9]+/g, '-')) + '-' + U.rm;
@@ -708,7 +1136,7 @@ document.addEventListener('click', function (e) {
       var s1 = U.sheet && byId(U.sheet.id);
       if (!s1 || !s1.phone) { e.preventDefault(); break; }
       t.href = waLink(s1.phone, parentMsg(s1, U.sm, U.draft.note, U.draft.lang));
-      (D.sent[U.sm] = D.sent[U.sm] || {})[s1.id] = TODAY; save();
+      act('sent', {month: U.sm, sid: s1.id, date: TODAY});
       setTimeout(function () { renderSheet(); render(); }, 400);
       break;
     }
@@ -718,7 +1146,50 @@ document.addEventListener('click', function (e) {
     case 'ask-delete': U.confirm = true; renderSheet(); break;
     case 'cancel-confirm': U.confirm = false; renderSheet(); break;
     case 'delete-student': {
-      var ds = byId(id); D.students = D.students.filter(function (s) { return s.id !== id; }); save(); closeSheet(); render(); if (ds) toast(ds.name + ' removed'); break;
+      var ds = byId(id); act('removeStudent', {id: id}); closeSheet(); render(); if (ds) toast(ds.name + ' removed'); break;
+    }
+    case 'lock-now': lockApp(); break;
+    case 'change-pin': openSheet('pin'); setTimeout(function () { var f = $('#cp-old'); if (f) f.focus(); }, 50); break;
+    case 'invite': openSheet('invite'); break;
+    case 'copy-invite': copyText(inviteLink()); break;
+    case 'ask-disconnect': U.confirm = true; renderSheet(); $('#sheet').scrollTop = 99999; break;
+    case 'do-disconnect': {
+      CONN = null; saveConn(); OUTBOX = []; saveOutbox(); D = blank(); save(); SES.token = null; closeSheet();
+      G.screen = 'welcome'; G.msg = ''; SES.unlocked = false; showGate(); updateSync(); break;
+    }
+    case 'g-owner-from-settings': closeSheet(); G.screen = 'owner'; G.msg = ''; SES.unlocked = false; showGate(); break;
+    case 'g-welcome': G.screen = 'welcome'; G.msg = ''; renderGate(); break;
+    case 'g-owner': G.screen = 'owner'; G.msg = ''; renderGate(); break;
+    case 'g-join': G.screen = 'join'; G.msg = ''; renderGate(); break;
+    case 'g-local': G.screen = 'pin'; G.mode = LPIN ? 'enter' : 'create'; G.msg = ''; G.info = ''; renderGate(); break;
+    case 'g-copy-code': {
+      var box = $('#g-code');
+      if (!G.code) { toast('The code is still loading. Try again in a moment.'); break; }
+      try { navigator.clipboard.writeText(G.code).then(function () { toast('Code copied. Paste it in Apps Script.'); }, function () { box.focus(); box.select(); toast('Press Ctrl+C to copy the selected code.'); }); }
+      catch (x) { box.focus(); box.select(); toast('Press Ctrl+C to copy the selected code.'); }
+      break;
+    }
+    case 'g-connect': connectTo(($('#g-url') || {}).value, false); break;
+    case 'g-join-go': connectTo(($('#g-join') || {}).value, true); break;
+    case 'g-import': {
+      G.busy = true; G.msg = ''; renderGate();
+      var data = JSON.parse(JSON.stringify(D));
+      api('importAll', {data: data}).then(function (r) {
+        G.busy = false;
+        if (!r.ok) { G.msg = r.error === 'not_empty' ? 'The online register already has students. Starting with those.' : 'Couldn’t move the data (' + r.error + ').'; if (r.error !== 'not_empty') { renderGate(); return; } }
+        else toast(r.students + ' students and ' + r.days + ' days moved online');
+        hideGate(); render(); pull();
+      }, function () { G.busy = false; G.msg = 'No internet. Try again when you’re online.'; renderGate(); });
+      break;
+    }
+    case 'g-skip-import': hideGate(); render(); pull(); break;
+    case 'pin-key': if (!G.busy && G.entry.length < 4) { G.entry += v; G.msg = ''; renderGate(); if (G.entry.length === 4) { var pinv = G.entry; setTimeout(function () { submitPin(pinv); }, 120); } } break;
+    case 'pin-del': G.entry = G.entry.slice(0, -1); renderGate(); break;
+    case 'pin-forgot': if (G.mode === 'enter') { G.screen = 'forgot'; renderGate(); } break;
+    case 'g-back-pin': G.screen = 'pin'; G.msg = ''; renderGate(); break;
+    case 'g-wipe': {
+      try { [KEY, LPIN_KEY, OUT_KEY, CONN_KEY].forEach(function (k) { localStorage.removeItem(k); }); } catch (x) {}
+      D = blank(); LPIN = null; CONN = null; OUTBOX = []; G.screen = 'welcome'; renderGate(); toast('This phone was cleared. Set it up again, then restore your backup in Settings.'); break;
     }
     case 'add-batch': $('#batch-rows').insertAdjacentHTML('beforeend', batchRow({id: rid('b'), name: '', time: ''})); $('#batch-rows .batch-row:last-child input').focus(); break;
     case 'rm-batch': t.closest('.batch-row').remove(); break;
@@ -745,34 +1216,52 @@ document.addEventListener('submit', function (e) {
   if (f.id === 'f-student') {
     var name = $('#f-name').value.trim();
     if (!name) { toast('Enter the player’s name.'); $('#f-name').focus(); return; }
-    var rec = {name: name, batch: $('#f-batch').value, joined: $('#f-joined').value || TODAY, parentName: $('#f-pname').value.trim(), phone: $('#f-phone').value.trim()};
-    if (f.dataset.id) { Object.assign(byId(f.dataset.id), rec); toast('Saved'); }
-    else { rec.id = rid('s'); D.students.push(rec); toast(name + ' added'); }
-    save(); closeSheet(); render();
+    var rec = {id: f.dataset.id || rid('s'), name: name, batch: $('#f-batch').value, joined: $('#f-joined').value || TODAY, parentName: $('#f-pname').value.trim(), phone: $('#f-phone').value.trim()};
+    act('saveStudents', {students: [rec]}); toast(f.dataset.id ? 'Saved' : name + ' added');
+    closeSheet(); render();
   } else if (f.id === 'f-many') {
-    var b = $('#m-batch').value, added = 0;
+    var b = $('#m-batch').value, list = [];
     $('#m-text').value.split(/\r?\n/).forEach(function (line) {
       line = line.trim(); if (!line) return;
       var ph = (line.match(/(\+?\d[\d\s-]{8,}\d)/) || [''])[0], nm = line.replace(ph, '').replace(/[,;|\t-]+\s*$/, '').replace(/^\d+[.)]\s*/, '').replace(/[,;|\t]+/g, ' ').trim();
       if (!nm) return;
-      D.students.push({id: rid('s'), name: nm, batch: b, joined: TODAY, parentName: '', phone: ph.trim()}); added++;
+      list.push({id: rid('s') + list.length, name: nm, batch: b, joined: TODAY, parentName: '', phone: ph.trim()});
     });
-    if (!added) { toast('Paste at least one name.'); return; }
-    save(); closeSheet(); U.stb = b || 'all'; render(); toast(added + ' students added to ' + batchName(b));
+    if (!list.length) { toast('Paste at least one name.'); return; }
+    act('saveStudents', {students: list});
+    closeSheet(); U.stb = b || 'all'; render(); toast(list.length + ' students added to ' + batchName(b));
   } else if (f.id === 'f-settings') {
     var batches = [];
     f.querySelectorAll('.batch-row').forEach(function (r) { var ins = r.querySelectorAll('input'), n = ins[0].value.trim(); if (n) batches.push({id: r.dataset.bid, name: n, time: ins[1].value.trim()}); });
-    D.academy = $('#st-name').value.trim() || 'My academy';
-    D.batches = batches;
-    D.lang = $('#st-hi').getAttribute('aria-pressed') === 'true' ? 'hi' : 'en';
-    save(); closeSheet(); render(); toast('Settings saved');
+    act('saveSettings', {academy: $('#st-name').value.trim() || 'My academy', batches: batches, lang: $('#st-hi').getAttribute('aria-pressed') === 'true' ? 'hi' : 'en'});
+    closeSheet(); render(); toast('Settings saved');
+  } else if (f.id === 'f-pin') {
+    var oldp = $('#cp-old').value.trim(), newp = $('#cp-new').value.trim();
+    if (!/^\d{4}$/.test(newp)) { toast('The new PIN must be 4 digits.'); return; }
+    var btn = f.querySelector('[type=submit]'); btn.disabled = true;
+    if (!shared()) {
+      checkVerifier(LPIN, oldp).then(function (ok) {
+        if (!ok) { btn.disabled = false; toast('The current PIN is wrong.'); return; }
+        return makeVerifier(newp, 0).then(function (v) { LPIN = v; writeJSON(LPIN_KEY, v); SES.pin = newp; closeSheet(); toast('PIN changed'); });
+      });
+      return;
+    }
+    var go = function () { return api('changePin', {oldPin: oldp, newPin: newp}); };
+    (SES.token ? go() : getToken().then(go)).then(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { toast(r.error === 'wrong' ? 'The current PIN is wrong.' : 'Couldn’t change the PIN (' + r.error + ').'); return; }
+      SES.token = r.token; SES.pin = newp;
+      return makeVerifier(newp, r.pinVer).then(function (v) { CONN.verifier = v; saveConn(); closeSheet(); toast('PIN changed. Tell your staff the new PIN.'); });
+    }, function () { btn.disabled = false; toast('You need internet to change the shared PIN.'); });
   }
 });
 document.addEventListener('input', function (e) {
   if (e.target.id === 'q') { U.q = e.target.value; renderStudents(); }
   else if (e.target.id === 's-note' && U.draft && U.sheet) {
     U.draft.note = e.target.value;
-    (D.notes[U.sm] = D.notes[U.sm] || {})[U.sheet.id] = e.target.value; save();
+    var noteSid = U.sheet.id, noteM = U.sm, noteV = e.target.value;
+    clearTimeout(window.__noteT);
+    window.__noteT = setTimeout(function () { act('note', {month: noteM, sid: noteSid, text: noteV}); }, 700);
     updatePreview();
   }
 });
@@ -800,7 +1289,26 @@ $('#btn-settings').innerHTML = ic('gear', 20);
 $('#d-prev').innerHTML = $('#r-prev').innerHTML = $('#s-prev').innerHTML = ic('left', 20);
 $('#d-next').innerHTML = $('#r-next').innerHTML = $('#s-next').innerHTML = ic('right', 20);
 [['mark', 'check', 'Mark'], ['reg', 'grid', 'Register'], ['send', 'send', 'WhatsApp'], ['students', 'users', 'Students']].forEach(function (x) { $('#t-' + x[0]).innerHTML = ic(x[1], 22) + '<span>' + x[2] + '</span>'; });
+$('#btn-lock').innerHTML = ic('lock', 20);
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'hidden') { SES.hiddenAt = Date.now(); if (shared() && OUTBOX.length && SES.unlocked) flush(); }
+  else if (SES.unlocked && SES.hiddenAt && Date.now() - SES.hiddenAt > 120000) lockApp();
+  else if (SES.unlocked && shared()) pull();
+});
 render();
+(function boot() {
+  var j = location.hash.match(/^#join=(.+)$/);
+  if (j) {
+    try { history.replaceState(null, '', APP_URL); } catch (x) {}
+    var link = decodeURIComponent(j[1]);
+    if (shared() && CONN.url === link.replace(/\/$/, '')) { lockApp(); return; }
+    G.screen = 'join'; showGate(); var inp = $('#g-join'); if (inp) inp.value = link;
+    connectTo(link, true); return;
+  }
+  if (shared()) { lockApp(); return; }
+  if (LPIN) { G.screen = 'pin'; G.mode = 'enter'; G.msg = ''; showGate(); return; }
+  G.screen = 'welcome'; showGate();
+})();
 })();
 </script>
 </body>
