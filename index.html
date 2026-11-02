@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1A56DB">
+<title>Pro Smash Attendance</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Attendance">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+/* White + blue, one look on every device. Layout: blue header, one column, bottom tabs, bottom sheets for forms. */
+:root{
+  --bg:#FFFFFF; --surface:#F3F6FC; --card:#FFFFFF; --ink:#0F1B3D; --muted:#5A6A8A; --line:#DCE3F0; --line-soft:#EBF0F8;
+  --blue:#1A56DB; --blue-dark:#1442AE; --blue-soft:#E7EEFF; --on-blue:#FFFFFF;
+  --ok:#11804A; --ok-soft:#E1F4E9; --bad:#CC3333; --bad-soft:#FCE6E6; --warn:#A35F00; --warn-soft:#FFF1D9;
+  --wa:#169C55; --bubble:#DCF7C5; --chat:#EFEAE2; --scrim:rgba(10,20,45,.45);
+  --shadow:0 1px 2px rgba(15,27,61,.06),0 8px 24px rgba(15,27,61,.10);
+  --font:"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans Devanagari","Nirmala UI",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--surface);color:var(--ink)}
+body{font-family:var(--font);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3,p{margin:0}
+[hidden]{display:none!important}
+:focus-visible{outline:2.5px solid var(--blue);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.num{font-variant-numeric:tabular-nums}
+
+/* header */
+.top{background:var(--blue);color:var(--on-blue);padding-top:env(safe-area-inset-top,0px)}
+.top-in{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-block:16px 18px}
+.eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+.top h1{font-size:clamp(21px,5.6vw,28px);font-weight:800;letter-spacing:-.01em;line-height:1.15;margin-top:3px;overflow-wrap:anywhere}
+.top-sub{color:var(--on-blue);opacity:.88;font-size:13.5px;margin-top:4px}
+.icon-btn{flex:none;width:42px;height:42px;border-radius:12px;border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);color:var(--on-blue);display:grid;place-items:center}
+
+main{padding-block:16px calc(92px + env(safe-area-inset-bottom,0px))}
+.view{display:grid;gap:14px}
+.view>*{min-width:0}
+
+/* pieces */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.lbl{font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.sec-h h2{font-size:17px;font-weight:750}
+.hint{font-size:13px;color:var(--muted)}
+.big{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1.05;font-variant-numeric:tabular-nums}
+.big small{font-size:15px;font-weight:600;color:var(--muted);letter-spacing:0}
+.bar{height:8px;border-radius:9px;background:var(--line-soft);overflow:hidden}
+.bar>i{display:block;height:100%;background:var(--blue);border-radius:9px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13.5px;color:var(--muted)}
+.legend b{color:var(--ink);font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:8px 16px;border-radius:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:650;font-size:14.5px;text-decoration:none;white-space:nowrap}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--on-blue)}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#FFFFFF}
+.btn.wa-line{color:var(--wa);border-color:var(--ok-soft)}
+.btn.small{min-height:34px;padding:5px 12px;font-size:13.5px;border-radius:9px}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--blue)}
+.btn.danger{color:var(--bad);border-color:var(--bad-soft)}
+.btn.danger-solid{background:var(--bad);border-color:var(--bad);color:#FFFFFF}
+.btn.block{width:100%;min-height:48px;font-size:15.5px}
+.btn:disabled,a.btn.off{opacity:.45;pointer-events:none}
+.btn-row{display:flex;flex-wrap:wrap;gap:8px}
+
+.pill{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.neutral{background:var(--line-soft);color:var(--muted)}
+
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:1px 2px 3px;margin-inline:-2px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:14px;font-weight:650;color:var(--ink)}
+.chip span{color:var(--muted);font-weight:600;margin-left:5px;font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:var(--on-blue)}
+.chip[aria-pressed="true"] span{color:var(--on-blue);opacity:.8}
+
+.switch{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px}
+.switch .nav{width:42px;height:42px;flex:none;border-radius:10px;border:0;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center}
+.switch .nav:disabled{opacity:.35;cursor:default}
+.switch-mid{flex:1;min-width:0;text-align:center;display:grid}
+.switch-mid b{font-size:18px;font-weight:750}
+.switch-mid input{border:0;background:transparent;text-align:center;color:var(--muted);font-weight:600;font-size:14px;min-height:26px;width:100%;padding:0}
+
+.rows{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line-soft);min-width:0}
+.row:first-child{border-top:0}
+.row-main{flex:1;min-width:0;display:flex;align-items:center;gap:12px;background:none;border:0;padding:0;text-align:left;color:inherit}
+.row-text{min-width:0;display:grid;gap:1px}
+.row-text b{font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-end{display:flex;align-items:center;gap:8px;flex:none}
+.av{width:42px;height:42px;flex:none;border-radius:12px;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;font-weight:800;font-size:15px}
+
+.pa{display:flex;gap:6px;flex:none}
+.pa button{width:44px;height:44px;border-radius:11px;border:1.5px solid var(--line);background:var(--card);font-weight:800;font-size:16px;color:var(--muted)}
+.pa button[data-v="P"][aria-pressed="true"]{background:var(--ok);border-color:var(--ok);color:#FFFFFF}
+.pa button[data-v="A"][aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:#FFFFFF}
+.wa-mini{width:36px;height:36px;border-radius:10px;border:1px solid var(--ok-soft);display:grid;place-items:center;color:var(--wa);background:var(--card);flex:none}
+
+.empty{text-align:center;padding:26px 16px;color:var(--muted);display:grid;gap:10px;justify-items:center}
+.empty h3{color:var(--ink);font-size:18px}
+.notice{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.notice.warn{border-color:#F2C97A;background:var(--warn-soft)}
+.notice p{font-size:14px;min-width:0;flex:1 1 220px}
+
+/* register grid */
+.reg-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;-webkit-overflow-scrolling:touch}
+table.reg{border-collapse:separate;border-spacing:0;font-size:12px;font-variant-numeric:tabular-nums;min-width:100%}
+.reg th,.reg td{padding:0;text-align:center;border-bottom:1px solid var(--line-soft);height:34px;min-width:27px}
+.reg tbody tr:last-child th,.reg tbody tr:last-child td{border-bottom:0}
+.reg thead th{background:var(--blue-soft);color:var(--blue-dark);font-weight:700;height:42px;line-height:1.05;border-bottom:1px solid var(--line)}
+.reg thead th small{display:block;font-size:9.5px;font-weight:600;opacity:.8;margin-top:2px}
+.reg thead th.today{background:var(--blue);color:var(--on-blue)}
+.reg .nm{position:sticky;left:0;z-index:1;background:var(--card);text-align:left;padding:0 10px;min-width:116px;max-width:146px;border-right:1px solid var(--line)}
+.reg thead .nm{background:var(--blue-soft);z-index:2}
+.reg .nm b{display:block;font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.reg td.P{background:var(--ok-soft);color:var(--ok);font-weight:800}
+.reg td.A{background:var(--bad-soft);color:var(--bad);font-weight:800}
+.reg td.off,.reg th.off{background:#F7F9FD}
+.reg thead th.off{background:#F0F3FA;color:#9AA6BF}
+.reg .tot{padding:0 9px;font-weight:750;border-left:1px solid var(--line);white-space:nowrap}
+.reg th button{border:0;background:none;font:inherit;color:inherit;width:100%;height:100%;padding:0}
+.key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--muted)}
+.key i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+/* tabs */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6px,env(safe-area-inset-right,0px))}
+.tabs{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 2px 10px;background:none;border:0;color:var(--muted);font-size:12px;font-weight:650}
+.tab[aria-current="page"]{color:var(--blue)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;max-height:92%;overflow-y:auto;overscroll-behavior:contain;background:var(--surface);border-radius:20px 20px 0 0;box-shadow:var(--shadow);padding-bottom:calc(22px + env(safe-area-inset-bottom,0px))}
+@media (min-width:700px){.sheet{left:50%;right:auto;width:620px;transform:translateX(-50%);bottom:24px;border-radius:20px;max-height:calc(100% - 48px)}}
+.sheet-in{max-width:620px;margin:0 auto;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));display:grid;gap:14px}
+.sheet-in>*{min-width:0}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;background:var(--surface);padding-block:14px 6px;z-index:2}
+.sheet-h h2{font-size:20px;font-weight:800;min-width:0;overflow-wrap:anywhere}
+.x{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+form{display:grid;gap:14px}
+.field{display:grid;gap:6px;min-width:0}
+.inp{width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--line);border-radius:11px;background:var(--card);font-size:16px}
+textarea.inp{min-height:84px;resize:vertical}
+.grid2{display:grid;gap:14px}
+@media (min-width:480px){.grid2{grid-template-columns:1fr 1fr}}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--line-soft);border-radius:12px;padding:4px}
+.seg button{border:0;background:transparent;border-radius:9px;min-height:38px;font-weight:650;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(15,27,61,.12)}
+.stat3{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stat3>div{background:var(--card);padding:10px 12px;display:grid;gap:1px;min-width:0}
+.stat3 b{font-size:21px;font-weight:800;font-variant-numeric:tabular-nums}
+.chat{background:var(--chat);border-radius:16px;padding:14px}
+.bubble{background:var(--bubble);color:#0B1F12;border-radius:4px 14px 14px 14px;padding:11px 13px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:14.5px;line-height:1.45}
+.confirm{border:1px solid var(--bad);background:var(--bad-soft);border-radius:14px;padding:14px;display:grid;gap:10px}
+.batch-row{display:grid;grid-template-columns:1fr 1fr 40px;gap:8px;align-items:center}
+.batch-row .x{width:40px;height:40px;border-radius:10px}
+.install{display:flex;gap:12px;align-items:center;background:var(--blue-soft);border:1px solid #C9D7FB;border-radius:16px;padding:12px 14px}
+.install img{width:48px;height:48px;border-radius:12px;flex:none}
+.install .txt{flex:1;min-width:0;display:grid;gap:2px}
+.install .txt b{font-size:15px}
+.install .txt span{font-size:13px;color:var(--muted)}
+.install .btns{display:flex;flex-direction:column;gap:6px;flex:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--ink);color:#FFFFFF;padding:11px 16px;border-radius:12px;font-weight:650;font-size:14px;max-width:calc(100% - 32px);text-align:center;box-shadow:var(--shadow)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-in">
+    <div style="min-width:0">
+      <p class="eyebrow">Attendance register</p>
+      <h1 id="h-name">Pro Smash Badminton Academy</h1>
+      <p class="top-sub" id="h-sub"></p>
+    </div>
+    <button class="icon-btn" data-act="settings" aria-label="Settings and backup" id="btn-settings"></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="view" data-view="mark" id="v-mark">
+    <div id="install-note"></div>
+    <div id="backup-note"></div>
+    <div class="switch">
+      <button class="nav" data-act="day-prev" aria-label="Previous day" id="d-prev"></button>
+      <div class="switch-mid"><b id="d-label">Today</b><input type="date" id="d-input" aria-label="Date"></div>
+      <button class="nav" data-act="day-next" aria-label="Next day" id="d-next"></button>
+    </div>
+    <div class="chips" id="mark-chips" role="group" aria-label="Batch"></div>
+    <div id="mark-sum"></div>
+    <div id="mark-list"></div>
+  </section>
+
+  <section class="view" data-view="reg" id="v-reg" hidden>
+    <div class="switch">
+      <button class="nav" data-act="reg-prev" aria-label="Previous month" id="r-prev"></button>
+      <div class="switch-mid"><span class="lbl">Month register</span><b id="r-label"></b></div>
+      <button class="nav" data-act="reg-next" aria-label="Next month" id="r-next"></button>
+    </div>
+    <div class="chips" id="reg-chips" role="group" aria-label="Batch"></div>
+    <div id="reg-body" class="view"></div>
+  </section>
+
+  <section class="view" data-view="send" id="v-send" hidden>
+    <div class="switch">
+      <button class="nav" data-act="send-prev" aria-label="Previous month" id="s-prev"></button>
+      <div class="switch-mid"><span class="lbl">Send to parents</span><b id="s-label"></b></div>
+      <button class="nav" data-act="send-next" aria-label="Next month" id="s-next"></button>
+    </div>
+    <div class="chips" id="send-chips" role="group" aria-label="Batch"></div>
+    <div id="send-body" class="view"></div>
+  </section>
+
+  <section class="view" data-view="students" id="v-students" hidden>
+    <div class="btn-row"><button class="btn primary" data-act="add-student" style="flex:1">+ Add student</button><button class="btn" data-act="add-many" style="flex:1">Add many at once</button></div>
+    <input class="inp" id="q" type="search" placeholder="Search name or phone" aria-label="Search students" autocomplete="off">
+    <div class="chips" id="stu-chips" role="group" aria-label="Batch"></div>
+    <div id="stu-list"></div>
+  </section>
+</main>
+
+<nav class="tabbar" aria-label="Sections">
+  <div class="tabs">
+    <button class="tab" data-act="tab" data-v="mark" id="t-mark"></button>
+    <button class="tab" data-act="tab" data-v="reg" id="t-reg"></button>
+    <button class="tab" data-act="tab" data-v="send" id="t-send"></button>
+    <button class="tab" data-act="tab" data-v="students" id="t-students"></button>
+  </div>
+</nav>
+
+<div class="scrim" id="scrim" data-act="close" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" hidden><div class="sheet-in" id="sheet-in"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<input type="file" id="restore-file" accept=".json,application/json" hidden>
+
+<script>
+(function () {
+"use strict";
+/* ================= helpers ================= */
+var $ = function (s) { return document.querySelector(s); };
+function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]; }); }
+function pad(n) { return String(n).padStart(2, '0'); }
+function dstr(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+var TODAY = dstr(new Date()), CUR = TODAY.slice(0, 7);
+var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+var MONTH_HI = ['जनवरी', 'फ़रवरी', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अगस्त', 'सितंबर', 'अक्टूबर', 'नवंबर', 'दिसंबर'];
+var DAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+function parseD(s) { var p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function addDays(s, k) { var d = parseD(s); d.setDate(d.getDate() + k); return dstr(d); }
+function addMonths(m, k) { var p = m.split('-').map(Number), y = p[0], mo = p[1] + k; while (mo > 12) { mo -= 12; y++; } while (mo < 1) { mo += 12; y--; } return y + '-' + pad(mo); }
+function lastDay(m) { var p = m.split('-').map(Number); return new Date(p[0], p[1], 0).getDate(); }
+function mLabel(m) { var p = m.split('-').map(Number); return MONTH[p[1] - 1] + ' ' + p[0]; }
+function mLabelHi(m) { var p = m.split('-').map(Number); return MONTH_HI[p[1] - 1] + ' ' + p[0]; }
+function fmtDate(s) { var d = parseD(s); return d.getDate() + ' ' + MON[d.getMonth()] + ' ' + d.getFullYear(); }
+function initials(n) { return String(n || '?').trim().split(/\s+/).slice(0, 2).map(function (w) { return w[0] || ''; }).join('').toUpperCase() || '?'; }
+function rid(p) { return (p || 's') + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function firstName(n) { return String(n || '').trim().split(/\s+/)[0]; }
+var ICON = {
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  grid: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M3.5 14.5h17M9 4.5v15M14.5 4.5v15"/>',
+  send: '<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2Z"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4"/><path d="M18 14.8c1.9.8 3.1 2.6 3.5 5.2"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
+  left: '<path d="m15 18-6-6 6-6"/>', right: '<path d="m9 18 6-6-6-6"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  wa: '<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19.2Z"/><path d="M9.2 8.6c.2-.5.6-.5.9-.5l.6.1 1 2.1-.6.9c.5 1 1.3 1.8 2.3 2.3l.9-.6 2.1 1-.1.6c-.1.4-.6 1-1.4 1-2.6 0-5.8-3.1-5.8-5.8 0-.4 0-.8.1-1.1Z"/>',
+  down: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', up: '<path d="M12 20V9M7 14l5-5 5 5M5 4h14"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'
+};
+function ic(n, s) { return '<svg viewBox="0 0 24 24" width="' + (s || 20) + '" height="' + (s || 20) + '" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[n] + '</svg>'; }
+
+/* ================= data, saved on this device ================= */
+var KEY = 'proSmashAttendance.v1';
+function blank() {
+  return {academy: 'Pro Smash Badminton Academy',
+    batches: [{id: 'b1', name: 'Beginner', time: ''}, {id: 'b2', name: 'Intermediate', time: ''}, {id: 'b3', name: 'Advance 1', time: ''}, {id: 'b4', name: 'Advance pro', time: ''}],
+    students: [], att: {}, notes: {}, sent: {}, lang: 'en', lastBackup: '', started: TODAY};
+}
+function fix(d) {
+  var b = blank();
+  if (!d || typeof d !== 'object') return b;
+  ['academy', 'lang', 'lastBackup', 'started'].forEach(function (k) { if (typeof d[k] !== 'string') d[k] = b[k]; });
+  if (!Array.isArray(d.batches)) d.batches = b.batches;
+  if (!Array.isArray(d.students)) d.students = [];
+  ['att', 'notes', 'sent'].forEach(function (k) { if (!d[k] || typeof d[k] !== 'object') d[k] = {}; });
+  d.students = d.students.filter(function (s) { return s && s.id && s.name; });
+  return d;
+}
+var storageOK = true, D;
+try { D = fix(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch (e) { storageOK = false; D = blank(); }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(D)); storageOK = true; }
+  catch (e) { storageOK = false; toast('Couldn’t save on this phone. Download a backup from Settings now.'); }
+}
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+window.addEventListener('storage', function (e) { if (e.key === KEY) { try { D = fix(JSON.parse(e.newValue || 'null')); render(); } catch (x) {} } });
+
+/* ================= install as an app ================= */
+var INST = {
+  prompt: null,
+  standalone: (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true,
+  ios: /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+  web: /^https?:$/.test(location.protocol)
+};
+var LATER_KEY = 'proSmashAttendance.installLater';
+function installLater() { try { var d = localStorage.getItem(LATER_KEY); return d && (parseD(TODAY) - parseD(d)) / 864e5 < 7; } catch (e) { return false; } }
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault(); INST.prompt = e; render();
+  if (U.sheet && U.sheet.type === 'settings') renderSheet();
+});
+window.addEventListener('appinstalled', function () {
+  INST.prompt = null; INST.standalone = true; render();
+  toast('App installed. Open it from your home screen.');
+});
+if ('serviceWorker' in navigator && INST.web) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+function installHow() {
+  if (INST.prompt) return '';
+  if (INST.ios) return 'In Safari, tap the Share button (square with an arrow) at the bottom, then “Add to Home Screen”.';
+  return 'Tap the browser menu ⋮ (top right), then “Install app” or “Add to Home screen”.';
+}
+function installBanner() {
+  if (INST.standalone || !INST.web || installLater()) return '';
+  return '<div class="install"><img src="icon-192.png" alt=""><div class="txt"><b>Install the app</b><span>' +
+    (INST.prompt ? 'Put Pro Smash Attendance on your home screen. It opens in one tap, even without internet.' : esc(installHow())) + '</span></div>' +
+    '<div class="btns">' + (INST.prompt ? '<button class="btn small primary" data-act="install">Install</button>' : '') + '<button class="btn small ghost" data-act="install-later">Not now</button></div></div>';
+}
+function installCard() {
+  if (INST.standalone) return '<div class="card" style="display:grid;gap:6px"><h3 style="font-size:17px">App</h3><p class="hint">You’re using the installed app. ' + ic('check', 14) + '</p></div>';
+  if (!INST.web) return '<div class="card" style="display:grid;gap:6px"><h3 style="font-size:17px">Install as an app</h3><p class="hint">You opened this as a file. To install it, open the app’s link (dheerajsharma9189-cell.github.io/pro-smash-attendance) on your phone.</p></div>';
+  return '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Install as an app</h3><p class="hint">' + (INST.prompt ? 'Adds Pro Smash Attendance to your home screen. It opens full screen and works without internet.' : esc(installHow())) + '</p>' +
+    (INST.prompt ? '<button class="btn primary" data-act="install">Install app</button>' : '') + '</div>';
+}
+
+/* ================= ui state ================= */
+var U = {tab: 'mark', date: TODAY, mb: '', rm: CUR, rb: '', sm: Number(TODAY.slice(8)) <= 12 ? addMonths(CUR, -1) : CUR, sb: 'all', stb: 'all', q: '', sheet: null, draft: null, confirm: false};
+function batchById(id) { for (var i = 0; i < D.batches.length; i++) if (D.batches[i].id === id) return D.batches[i]; return null; }
+function batchName(id) { var b = batchById(id); return b ? b.name : 'No batch'; }
+function byId(id) { for (var i = 0; i < D.students.length; i++) if (D.students[i].id === id) return D.students[i]; return null; }
+function sorted(list) { return list.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'en', {sensitivity: 'base'}); }); }
+function inBatch(s, b) { return b === 'all' || !b ? true : b === 'none' ? !batchById(s.batch) : s.batch === b; }
+function onRoll(s, date) { return !(s.joined && s.joined > date); }
+function monthRoll(m) { var end = m + '-' + pad(lastDay(m)); return D.students.filter(function (s) { return !(s.joined && s.joined > end); }); }
+function marks(d) { return D.att[d] || {}; }
+function stats(s, m) {
+  var P = 0, A = 0, absent = [], n = m === CUR ? Number(TODAY.slice(8)) : m > CUR ? 0 : lastDay(m);
+  for (var i = 1; i <= n; i++) { var v = marks(m + '-' + pad(i))[s.id]; if (v === 'P') P++; else if (v === 'A') { A++; absent.push(i); } }
+  return {P: P, A: A, total: P + A, pct: P + A ? Math.round(P * 100 / (P + A)) : null, absent: absent};
+}
+function waNum(p) { var d = String(p || '').replace(/\D/g, ''); if (!d) return ''; if (d.length === 10) d = '91' + d; else if (d.length === 11 && d[0] === '0') d = '91' + d.slice(1); return d.length >= 11 ? d : ''; }
+function waLink(phone, text) { var n = waNum(phone); return n ? 'https://wa.me/' + n + '?text=' + encodeURIComponent(text) : ''; }
+function waAny(text) { return 'https://wa.me/?text=' + encodeURIComponent(text); }
+var toastT;
+function toast(m) { var t = $('#toast'); t.textContent = m; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(function () { t.hidden = true; }, 3200); }
+function download(name, text, type) {
+  try {
+    var url = URL.createObjectURL(new Blob([text], {type: type}));
+    var a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 2000);
+    return true;
+  } catch (e) { toast('This browser blocked the download. Open the file in Chrome and try again.'); return false; }
+}
+function copyText(t) {
+  try { navigator.clipboard.writeText(t).then(function () { toast('Copied. Paste it in WhatsApp.'); }, function () { toast('Couldn’t copy. Use the WhatsApp button instead.'); }); }
+  catch (e) { toast('Couldn’t copy. Use the WhatsApp button instead.'); }
+}
+function batchChips(cur, act, withAll, counts) {
+  var h = '';
+  if (withAll) h += '<button class="chip" data-act="' + act + '" data-v="all" aria-pressed="' + (cur === 'all') + '">All<span>' + counts('all') + '</span></button>';
+  D.batches.forEach(function (b) { h += '<button class="chip" data-act="' + act + '" data-v="' + esc(b.id) + '" aria-pressed="' + (cur === b.id) + '">' + esc(b.name) + '<span>' + counts(b.id) + '</span></button>'; });
+  var nb = counts('none');
+  if (nb) h += '<button class="chip" data-act="' + act + '" data-v="none" aria-pressed="' + (cur === 'none') + '">No batch<span>' + nb + '</span></button>';
+  return h;
+}
+function countIn(list) { return function (b) { return list.filter(function (s) { return b === 'all' ? true : b === 'none' ? !batchById(s.batch) : s.batch === b; }).length; }; }
+
+/* ================= messages ================= */
+function parentMsg(s, m, note, lang) {
+  var st = stats(s, m), hi = lang === 'hi', ac = D.academy || 'Academy', L = [], absDays = st.absent.join(', ');
+  L.push('*' + ac + '*');
+  if (hi) {
+    L.push('मासिक उपस्थिति रिपोर्ट – ' + mLabelHi(m), '');
+    L.push('नमस्ते' + (s.parentName ? ' ' + s.parentName + ' जी' : '') + ',');
+    L.push(mLabelHi(m) + ' में ' + firstName(s.name) + ' की उपस्थिति:', '');
+    L.push('खिलाड़ी: ' + s.name, 'बैच: ' + batchName(s.batch), '');
+    if (st.total) {
+      L.push('✅ उपस्थित: ' + st.P + ' क्लास', '❌ अनुपस्थित: ' + st.A + ' क्लास' + (st.A ? ' (' + absDays + ' ' + MONTH_HI[Number(m.slice(5)) - 1] + ')' : ''), '📊 उपस्थिति: *' + st.pct + '%*');
+    } else L.push('इस महीने कोई उपस्थिति दर्ज नहीं है।');
+    if (note && note.trim()) L.push('', '*कोच की टिप्पणी*', note.trim());
+    L.push('', 'धन्यवाद,', ac);
+  } else {
+    L.push('Attendance report – ' + mLabel(m), '');
+    L.push('Dear ' + (s.parentName || 'parent') + ',');
+    L.push('Here is ' + firstName(s.name) + '’s attendance for ' + mLabel(m) + ':', '');
+    L.push('Player: ' + s.name, 'Batch: ' + batchName(s.batch), '');
+    if (st.total) {
+      L.push('✅ Present: ' + st.P + ' classes', '❌ Absent: ' + st.A + ' classes' + (st.A ? ' (' + absDays + ' ' + MON[Number(m.slice(5)) - 1] + ')' : ''), '📊 Attendance: *' + st.pct + '%*');
+    } else L.push('No attendance was marked this month.');
+    if (note && note.trim()) L.push('', '*Coach’s note*', note.trim());
+    L.push('', 'Thank you,', ac);
+  }
+  return L.join('\n');
+}
+function groupMsg(b, m, lang) {
+  var hi = lang === 'hi', ac = D.academy || 'Academy', list = sorted(monthRoll(m).filter(function (s) { return inBatch(s, b); }));
+  var n = m === CUR ? Number(TODAY.slice(8)) : lastDay(m), held = 0;
+  for (var i = 1; i <= n; i++) { var mk = marks(m + '-' + pad(i)); if (list.some(function (s) { return mk[s.id]; })) held++; }
+  var L = ['*' + ac + '*', (hi ? batchName(b) + ' बैच – उपस्थिति ' + mLabelHi(m) : batchName(b) + ' batch – attendance for ' + mLabel(m)), (hi ? 'कुल क्लास: ' : 'Classes held: ') + held, ''];
+  list.forEach(function (s, i) { var st = stats(s, m); L.push((i + 1) + '. ' + s.name + ' – ' + (st.total ? st.P + '/' + st.total + ' (' + st.pct + '%)' : '–')); });
+  L.push('', hi ? 'नियमित अभ्यास से ही बेहतर खेल आता है। धन्यवाद!' : 'Regular practice brings the best results. Thank you!');
+  return L.join('\n');
+}
+function absentMsg(s, date) {
+  var d = parseD(date), when = date === TODAY ? 'today' : 'on ' + d.getDate() + ' ' + MON[d.getMonth()];
+  return 'Hello ' + (s.parentName || 'parent') + ', ' + firstName(s.name) + ' was absent from badminton practice ' + when + '. Please let us know if everything is okay.\n– ' + (D.academy || 'Academy');
+}
+function waHtml(t) { return esc(t).replace(/\*([^*\n]+)\*/g, '<b>$1</b>'); }
+
+/* ================= render ================= */
+function render() {
+  $('#h-name').textContent = D.academy || 'My academy';
+  var d = parseD(TODAY);
+  $('#h-sub').textContent = DAY[d.getDay()] + ', ' + d.getDate() + ' ' + MONTH[d.getMonth()] + ' · ' + D.students.length + ' student' + (D.students.length === 1 ? '' : 's');
+  document.querySelectorAll('[data-view]').forEach(function (v) { v.hidden = v.dataset.view !== U.tab; });
+  document.querySelectorAll('.tab').forEach(function (t) { if (t.dataset.v === U.tab) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current'); });
+  if (!U.mb || (U.mb !== 'all' && U.mb !== 'none' && !batchById(U.mb))) U.mb = D.batches[0] ? D.batches[0].id : 'all';
+  if (!U.rb || (U.rb !== 'all' && U.rb !== 'none' && !batchById(U.rb))) U.rb = D.batches[0] ? D.batches[0].id : 'all';
+  if (U.tab === 'mark') renderMark();
+  else if (U.tab === 'reg') renderReg();
+  else if (U.tab === 'send') renderSend();
+  else renderStudents();
+}
+function noStudents(where) {
+  return '<div class="card empty"><h3>No students yet</h3><p>Add your students first. It takes a minute: paste all names at once with “Add many at once”.</p><button class="btn primary" data-act="go-students">Add students</button></div>';
+}
+
+/* mark */
+function renderMark() {
+  $('#install-note').innerHTML = installBanner();
+  var bn = $('#backup-note'), days = D.lastBackup ? Math.round((parseD(TODAY) - parseD(D.lastBackup)) / 864e5) : null;
+  if (!storageOK) bn.innerHTML = '<div class="notice warn"><p><b>This browser isn’t saving.</b> Open the file in Chrome (not inside WhatsApp or Files), or download a backup now.</p><button class="btn small" data-act="backup">Download backup</button></div>';
+  else if (D.students.length && (days === null || days > 30)) bn.innerHTML = '<div class="notice warn"><p>' + (days === null ? 'You haven’t saved a backup yet.' : 'Last backup was ' + days + ' days ago.') + ' Keep a copy in case this phone is lost or reset.</p><button class="btn small" data-act="backup">' + ic('down', 16) + ' Download backup</button></div>';
+  else bn.innerHTML = '';
+  var d = U.date, inp = $('#d-input');
+  inp.max = TODAY; if (document.activeElement !== inp) inp.value = d;
+  $('#d-label').textContent = d === TODAY ? 'Today' : d === addDays(TODAY, -1) ? 'Yesterday' : DAY[parseD(d).getDay()];
+  $('#d-next').disabled = d >= TODAY;
+  var list = $('#mark-list'), sum = $('#mark-sum');
+  if (!D.students.length) { $('#mark-chips').innerHTML = ''; sum.innerHTML = ''; list.innerHTML = noStudents(); return; }
+  var roll = D.students.filter(function (s) { return onRoll(s, d); });
+  $('#mark-chips').innerHTML = batchChips(U.mb, 'mb', true, countIn(roll));
+  var rows = sorted(roll.filter(function (s) { return inBatch(s, U.mb); })), mk = marks(d), P = 0, A = 0;
+  rows.forEach(function (s) { if (mk[s.id] === 'P') P++; else if (mk[s.id] === 'A') A++; });
+  var un = rows.length - P - A;
+  sum.innerHTML = '<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div class="legend"><span><span class="dot" style="background:var(--ok)"></span><b>' + P + '</b> present</span><span><span class="dot" style="background:var(--bad)"></span><b>' + A + '</b> absent</span><span><span class="dot" style="background:var(--line)"></span><b>' + un + '</b> not marked</span></div>' +
+    (un ? '<button class="btn small primary" data-act="all-present">Mark rest present</button>' : '<span class="pill ok">' + ic('check', 14) + '&nbsp;Done</span>') + '</div>';
+  if (!rows.length) { list.innerHTML = '<div class="card empty"><p>No students in this batch.</p></div>'; return; }
+  var h = '<div class="rows">';
+  rows.forEach(function (s) {
+    var v = mk[s.id] || '', wl = v === 'A' && s.phone ? waLink(s.phone, absentMsg(s, d)) : '';
+    h += '<div class="row"><span class="av">' + esc(initials(s.name)) + '</span><span class="row-text" style="flex:1"><b>' + esc(s.name) + '</b><span class="sub">' + esc(batchName(s.batch)) + '</span></span>' +
+      (wl ? '<a class="wa-mini" href="' + esc(wl) + '" target="_blank" rel="noopener" aria-label="Tell ' + esc(s.parentName || 'parent') + ' on WhatsApp" title="Tell parent on WhatsApp">' + ic('wa', 18) + '</a>' : '') +
+      '<span class="pa" role="group" aria-label="' + esc(s.name) + '"><button data-act="mark" data-id="' + s.id + '" data-v="P" aria-pressed="' + (v === 'P') + '" aria-label="Present">P</button><button data-act="mark" data-id="' + s.id + '" data-v="A" aria-pressed="' + (v === 'A') + '" aria-label="Absent">A</button></span></div>';
+  });
+  list.innerHTML = h + '</div>' + (A ? '<p class="hint">Tap the green WhatsApp icon next to an absent player to let their parent know.</p>' : '');
+}
+
+/* month register */
+function renderReg() {
+  var m = U.rm, body = $('#reg-body');
+  $('#r-label').textContent = mLabel(m);
+  $('#r-next').disabled = m >= CUR;
+  if (!D.students.length) { $('#reg-chips').innerHTML = ''; body.innerHTML = noStudents(); return; }
+  var roll = monthRoll(m);
+  $('#reg-chips').innerHTML = batchChips(U.rb, 'rb', true, countIn(roll));
+  var rows = sorted(roll.filter(function (s) { return inBatch(s, U.rb); }));
+  if (!rows.length) { body.innerHTML = '<div class="card empty"><p>No students in this batch for ' + esc(mLabel(m)) + '.</p></div>'; return; }
+  var n = m === CUR ? Number(TODAY.slice(8)) : lastDay(m), held = {}, heldN = 0;
+  for (var i = 1; i <= n; i++) { var mk = marks(m + '-' + pad(i)); held[i] = rows.some(function (s) { return mk[s.id]; }); if (held[i]) heldN++; }
+  var h = '<div class="reg-wrap"><table class="reg"><thead><tr><th class="nm" scope="col">Student</th>';
+  for (var d = 1; d <= n; d++) {
+    var key = m + '-' + pad(d);
+    h += '<th scope="col" class="' + (key === TODAY ? 'today' : held[d] ? '' : 'off') + '"><button data-act="reg-day" data-d="' + key + '" aria-label="Open ' + esc(fmtDate(key)) + '">' + d + '<small>' + DAY[parseD(key).getDay()].slice(0, 2) + '</small></button></th>';
+  }
+  h += '<th class="tot" scope="col">P</th><th class="tot" scope="col">A</th><th class="tot" scope="col">%</th></tr></thead><tbody>';
+  rows.forEach(function (s) {
+    var st = stats(s, m);
+    h += '<tr><th class="nm" scope="row"><b>' + esc(s.name) + '</b></th>';
+    for (var d2 = 1; d2 <= n; d2++) { var v = marks(m + '-' + pad(d2))[s.id] || ''; h += '<td class="' + (v || (held[d2] ? '' : 'off')) + '">' + v + '</td>'; }
+    h += '<td class="tot">' + st.P + '</td><td class="tot">' + st.A + '</td><td class="tot">' + (st.pct == null ? '–' : st.pct + '%') + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<div class="key"><span><i style="background:var(--ok-soft)"></i>P present</span><span><i style="background:var(--bad-soft)"></i>A absent</span><span><i style="background:#F0F3FA"></i>no class</span><span>' + heldN + ' classes held · tap a date to mark it</span></div>';
+  var grp = U.rb !== 'all' && U.rb !== 'none';
+  h += '<div class="btn-row">' + (grp ? '<a class="btn wa" style="flex:1" href="' + esc(waAny(groupMsg(U.rb, m, D.lang))) + '" target="_blank" rel="noopener">' + ic('wa', 18) + ' Send to ' + esc(batchName(U.rb)) + ' group</a>' : '') +
+    '<button class="btn" style="flex:1" data-act="csv">' + ic('down', 18) + ' Download Excel</button></div>';
+  h += '<p class="hint">' + (grp ? '“Send to group” opens WhatsApp with this batch’s attendance list typed. Choose the batch group and press send.' : 'Pick a batch above to send its attendance list to that batch’s WhatsApp group.') + '</p>';
+  body.innerHTML = h;
+}
+function csvFor(m, b) {
+  var rows = sorted(monthRoll(m).filter(function (s) { return inBatch(s, b); })), n = lastDay(m);
+  function q(v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  var head = ['Student', 'Batch', 'Parent phone']; for (var i = 1; i <= n; i++) head.push(String(i)); head.push('Present', 'Absent', 'Attendance %');
+  var out = [head.map(q).join(',')];
+  rows.forEach(function (s) {
+    var st = stats(s, m), r = [s.name, batchName(s.batch), s.phone || ''];
+    for (var j = 1; j <= n; j++) r.push(marks(m + '-' + pad(j))[s.id] || '');
+    r.push(st.P, st.A, st.pct == null ? '' : st.pct);
+    out.push(r.map(q).join(','));
+  });
+  return '﻿' + out.join('\r\n');
+}
+
+/* send to parents */
+function sendRows(m) {
+  var sent = D.sent[m] || {};
+  return sorted(monthRoll(m).filter(function (s) { return inBatch(s, U.sb); })).sort(function (a, b) { return (sent[a.id] ? 1 : 0) - (sent[b.id] ? 1 : 0); });
+}
+function renderSend() {
+  var m = U.sm, body = $('#send-body');
+  $('#s-label').textContent = mLabel(m);
+  $('#s-next').disabled = m >= CUR;
+  if (!D.students.length) { $('#send-chips').innerHTML = ''; body.innerHTML = noStudents(); return; }
+  var roll = monthRoll(m), sent = D.sent[m] || {};
+  $('#send-chips').innerHTML = batchChips(U.sb, 'sb', true, countIn(roll));
+  var rows = sendRows(m), done = rows.filter(function (s) { return sent[s.id]; }).length, pct = rows.length ? Math.round(done * 100 / rows.length) : 0;
+  var h = '<div class="card" style="display:grid;gap:10px"><div class="big">' + done + ' <small>of ' + rows.length + ' parents sent</small></div><div class="bar"><i style="width:' + pct + '%"></i></div>' +
+    '<p class="hint">Tap a player to see their month and send it to the parent on WhatsApp. The message is typed for you; just press send in WhatsApp.</p></div>';
+  if (U.sb !== 'all' && U.sb !== 'none') h += '<a class="btn wa block" href="' + esc(waAny(groupMsg(U.sb, m, D.lang))) + '" target="_blank" rel="noopener">' + ic('wa', 18) + ' Send whole ' + esc(batchName(U.sb)) + ' list to the group</a>';
+  if (!rows.length) { body.innerHTML = h + '<div class="card empty"><p>No students in this batch for ' + esc(mLabel(m)) + '.</p></div>'; return; }
+  h += '<div class="rows">';
+  rows.forEach(function (s) {
+    var st = stats(s, m);
+    h += '<div class="row"><button class="row-main" data-act="open-send" data-id="' + s.id + '"><span class="av">' + esc(initials(s.name)) + '</span><span class="row-text"><b>' + esc(s.name) + '</b><span class="sub">' + esc(batchName(s.batch)) + ' · ' + (st.total ? st.P + '/' + st.total + ' classes (' + st.pct + '%)' : 'no attendance') + '</span></span></button>' +
+      (sent[s.id] ? '<span class="pill ok">Sent ' + esc(fmtDate(sent[s.id]).split(' ').slice(0, 2).join(' ')) + '</span>' : s.phone ? '<span class="pill neutral">To send</span>' : '<span class="pill warn">No phone</span>') + '</div>';
+  });
+  body.innerHTML = h + '</div>';
+}
+
+/* students */
+function renderStudents() {
+  var list = $('#stu-list');
+  if (!D.students.length) { $('#stu-chips').innerHTML = ''; list.innerHTML = '<div class="card empty"><h3>No students yet</h3><p>Use “Add many at once” to paste your whole list: one student per line, name then phone.</p></div>'; return; }
+  $('#stu-chips').innerHTML = batchChips(U.stb, 'stb', true, countIn(D.students));
+  var q = U.q.trim().toLowerCase(), qd = q.replace(/\D/g, '');
+  var rows = sorted(D.students.filter(function (s) {
+    if (q) return s.name.toLowerCase().indexOf(q) >= 0 || (s.parentName || '').toLowerCase().indexOf(q) >= 0 || (qd && String(s.phone || '').replace(/\D/g, '').indexOf(qd) >= 0);
+    return inBatch(s, U.stb);
+  }));
+  if (!rows.length) { list.innerHTML = '<div class="card empty"><p>No student matches.</p></div>'; return; }
+  var h = '<div class="rows">';
+  rows.forEach(function (s) {
+    h += '<div class="row"><button class="row-main" data-act="edit-student" data-id="' + s.id + '"><span class="av">' + esc(initials(s.name)) + '</span><span class="row-text"><b>' + esc(s.name) + '</b><span class="sub">' + esc(batchName(s.batch)) + (s.phone ? ' · ' + esc(s.phone) : '') + '</span></span></button>' + (s.phone ? '' : '<span class="pill warn">No phone</span>') + '</div>';
+  });
+  list.innerHTML = h + '</div>';
+}
+
+/* ================= sheets ================= */
+function openSheet(type, opts) {
+  U.sheet = Object.assign({type: type}, opts || {}); U.confirm = false;
+  renderSheet();
+  $('#sheet').hidden = false; $('#scrim').hidden = false; $('#sheet').scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet() { U.sheet = null; U.draft = null; U.confirm = false; $('#sheet').hidden = true; $('#scrim').hidden = true; $('#sheet-in').innerHTML = ''; document.body.style.overflow = ''; }
+function head(t) { return '<div class="sheet-h"><h2>' + t + '</h2><button class="x" data-act="close" aria-label="Close">' + ic('x', 18) + '</button></div>'; }
+function batchOptions(sel) { return D.batches.map(function (b) { return '<option value="' + esc(b.id) + '"' + (b.id === sel ? ' selected' : '') + '>' + esc(b.name) + (b.time ? ' · ' + esc(b.time) : '') + '</option>'; }).join('') + '<option value=""' + (sel ? '' : ' selected') + '>No batch</option>'; }
+function renderSheet() {
+  var sh = U.sheet, box = $('#sheet-in'); if (!sh) return;
+  var top = $('#sheet').scrollTop;
+  if (sh.type === 'student') box.innerHTML = studentForm(sh.id ? byId(sh.id) : null);
+  else if (sh.type === 'many') box.innerHTML = manyForm();
+  else if (sh.type === 'send') box.innerHTML = sendSheet(byId(sh.id));
+  else if (sh.type === 'settings') box.innerHTML = settingsSheet();
+  $('#sheet').scrollTop = top;
+}
+function studentForm(s) {
+  var x = s || {batch: U.stb !== 'all' && U.stb !== 'none' ? U.stb : (D.batches[0] ? D.batches[0].id : ''), joined: TODAY};
+  var h = head(s ? 'Edit student' : 'Add student') + '<form id="f-student" data-id="' + (s ? s.id : '') + '" novalidate>' +
+    '<div class="field"><label class="lbl" for="f-name">Player name</label><input class="inp" id="f-name" value="' + esc(x.name || '') + '" placeholder="Full name" autocomplete="off" required></div>' +
+    '<div class="grid2"><div class="field"><label class="lbl" for="f-batch">Batch</label><select class="inp" id="f-batch">' + batchOptions(x.batch) + '</select></div>' +
+    '<div class="field"><label class="lbl" for="f-joined">Joined on</label><input class="inp" type="date" id="f-joined" value="' + esc(x.joined || TODAY) + '"></div></div>' +
+    '<div class="grid2"><div class="field"><label class="lbl" for="f-pname">Parent name</label><input class="inp" id="f-pname" value="' + esc(x.parentName || '') + '" autocomplete="off"></div>' +
+    '<div class="field"><label class="lbl" for="f-phone">Parent WhatsApp number</label><input class="inp num" id="f-phone" type="tel" inputmode="tel" value="' + esc(x.phone || '') + '" placeholder="10-digit mobile"></div></div>';
+  if (s && U.confirm) h += '<div class="confirm"><p><b>Remove ' + esc(s.name) + '?</b> Their old attendance stays in past registers, but they won’t appear anymore.</p><div class="btn-row"><button type="button" class="btn" data-act="cancel-confirm">Keep</button><button type="button" class="btn danger-solid" data-act="delete-student" data-id="' + s.id + '">Remove student</button></div></div>';
+  h += '<div class="actions">' + (s && !U.confirm ? '<button type="button" class="btn danger" data-act="ask-delete" style="margin-right:auto">Remove</button>' : '') + '<button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">' + (s ? 'Save' : 'Add student') + '</button></div></form>';
+  return h;
+}
+function manyForm() {
+  return head('Add many at once') + '<form id="f-many" novalidate>' +
+    '<div class="field"><label class="lbl" for="m-batch">Batch</label><select class="inp" id="m-batch">' + batchOptions(U.stb !== 'all' && U.stb !== 'none' ? U.stb : (D.batches[0] ? D.batches[0].id : '')) + '</select></div>' +
+    '<div class="field"><label class="lbl" for="m-text">One student per line: name, parent phone</label><textarea class="inp" id="m-text" style="min-height:180px" placeholder="Aarav Sharma, 9876543210&#10;Diya Verma, 9811122233&#10;Kabir Singh"></textarea><span class="hint">The phone is optional. You can copy a list from WhatsApp, Excel or your notes.</span></div>' +
+    '<div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">Add students</button></div></form>';
+}
+function sendSheet(s) {
+  if (!s) return head('Send');
+  var m = U.sm, st = stats(s, m), dr = U.draft, sent = (D.sent[m] || {})[s.id], txt = parentMsg(s, m, dr.note, dr.lang), wl = s.phone ? waLink(s.phone, txt) : '';
+  var h = head(esc(s.name));
+  h += '<p class="hint" style="margin-top:-8px">' + esc(batchName(s.batch)) + ' · ' + esc(mLabel(m)) + (sent ? ' · <b style="color:var(--ok)">sent ' + esc(fmtDate(sent)) + '</b>' : '') + '</p>';
+  h += '<div class="stat3"><div><span class="lbl">Attendance</span><b>' + (st.pct == null ? '–' : st.pct + '%') + '</b></div><div><span class="lbl">Present</span><b>' + st.P + '</b></div><div><span class="lbl">Absent</span><b>' + st.A + '</b></div></div>';
+  h += '<div class="field"><label class="lbl" for="s-note">Coach’s note (optional)</label><textarea class="inp" id="s-note" placeholder="e.g. Footwork is much better this month. Please make sure he comes on Saturdays too.">' + esc(dr.note) + '</textarea></div>';
+  h += '<div class="seg" role="group" aria-label="Message language"><button type="button" data-act="lang" data-v="en" aria-pressed="' + (dr.lang !== 'hi') + '">English</button><button type="button" data-act="lang" data-v="hi" aria-pressed="' + (dr.lang === 'hi') + '">हिंदी</button></div>';
+  h += '<div class="chat"><div class="bubble" id="s-preview">' + waHtml(txt) + '</div></div>';
+  h += s.phone ? '<p class="hint">Goes to ' + esc(s.parentName || 'parent') + ' · <span class="num">' + esc(s.phone) + '</span></p>' : '<p class="hint" style="color:var(--warn)">No WhatsApp number saved. Add it in Students, or use Copy and paste the message yourself.</p>';
+  h += '<div class="actions"><button type="button" class="btn" data-act="copy-msg">' + ic('copy', 16) + ' Copy</button><a class="btn wa' + (wl ? '' : ' off') + '" id="s-send" data-act="sent" href="' + esc(wl || '#') + '" target="_blank" rel="noopener" style="flex:1">' + ic('wa', 18) + ' Send on WhatsApp</a></div>';
+  var nx = nextToSend(s.id);
+  if (nx) h += '<button class="btn primary block" data-act="open-send" data-id="' + nx.id + '">Next: ' + esc(nx.name) + ' →</button>';
+  else if (sent) h += '<p class="hint" style="text-align:center">All parents in this list are done for ' + esc(mLabel(m)) + '.</p>';
+  return h;
+}
+function nextToSend(sid) {
+  var sent = D.sent[U.sm] || {}, rows = sendRows(U.sm);
+  for (var i = 0; i < rows.length; i++) if (rows[i].id !== sid && !sent[rows[i].id]) return rows[i];
+  return null;
+}
+function openSend(id) {
+  var m = U.sm, s = byId(id); if (!s) return;
+  U.draft = {note: ((D.notes[m] || {})[id]) || '', lang: D.lang};
+  openSheet('send', {id: id});
+}
+function updatePreview() {
+  var s = U.sheet && byId(U.sheet.id); if (!s || !U.draft) return;
+  var txt = parentMsg(s, U.sm, U.draft.note, U.draft.lang), p = $('#s-preview'), a = $('#s-send');
+  if (p) p.innerHTML = waHtml(txt);
+  if (a && s.phone) a.href = waLink(s.phone, txt);
+}
+function settingsSheet() {
+  var bytes = 0; try { bytes = (localStorage.getItem(KEY) || '').length * 2; } catch (e) {}
+  var h = head('Settings') + '<form id="f-settings" novalidate>' +
+    '<div class="field"><label class="lbl" for="st-name">Academy name</label><input class="inp" id="st-name" value="' + esc(D.academy) + '"></div>' +
+    '<div class="field"><span class="lbl">Batches</span><div id="batch-rows" style="display:grid;gap:8px">' + D.batches.map(batchRow).join('') + '</div>' +
+    '<button type="button" class="btn small" data-act="add-batch" style="justify-self:start">+ Add batch</button></div>' +
+    '<div class="field"><span class="lbl">WhatsApp message language</span><div class="seg" role="group"><button type="button" data-act="st-lang" data-v="en" id="st-en" aria-pressed="' + (D.lang !== 'hi') + '">English</button><button type="button" data-act="st-lang" data-v="hi" id="st-hi" aria-pressed="' + (D.lang === 'hi') + '">हिंदी</button></div></div>' +
+    '<div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">Save settings</button></div></form>';
+  h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Backup</h3>' +
+    '<p class="hint">Everything is saved inside this browser on this phone or computer. Download a backup every month and keep it in Google Drive or WhatsApp “Message yourself”. To move to a new phone, open this file there and restore the backup.</p>' +
+    '<p class="hint">Last backup: <b>' + (D.lastBackup ? esc(fmtDate(D.lastBackup)) : 'never') + '</b> · ' + D.students.length + ' students · ' + Object.keys(D.att).length + ' days of attendance · ' + Math.max(1, Math.round(bytes / 1024)) + ' KB of about 5,000 KB</p>' +
+    '<div class="btn-row"><button class="btn primary" data-act="backup" style="flex:1">' + ic('down', 18) + ' Download backup</button><button class="btn" data-act="restore" style="flex:1">' + ic('up', 18) + ' Restore backup</button></div></div>';
+  h += installCard();
+  if (U.sheet && U.sheet.restore) {
+    var r = U.sheet.restore;
+    h += '<div class="confirm"><p><b>Replace everything on this device with the backup from ' + esc(r.when) + '?</b> It has ' + r.data.students.length + ' students and ' + Object.keys(r.data.att).length + ' days of attendance. What’s here now will be replaced.</p><div class="btn-row"><button class="btn" data-act="cancel-restore">Cancel</button><button class="btn danger-solid" data-act="do-restore">Replace with backup</button></div></div>';
+  }
+  return h;
+}
+function batchRow(b) { return '<div class="batch-row" data-bid="' + esc(b.id) + '"><input class="inp" aria-label="Batch name" placeholder="Batch name" value="' + esc(b.name) + '"><input class="inp" aria-label="Timing" placeholder="Timing (optional)" value="' + esc(b.time || '') + '"><button type="button" class="x" data-act="rm-batch" aria-label="Remove batch">' + ic('x', 16) + '</button></div>'; }
+
+/* ================= actions ================= */
+function backup() {
+  D.lastBackup = TODAY; save();
+  if (download('pro-smash-attendance-backup-' + TODAY + '.json', JSON.stringify(D), 'application/json')) toast('Backup downloaded. Keep it somewhere safe.');
+  render(); if (U.sheet && U.sheet.type === 'settings') renderSheet();
+}
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-act]'); if (!t) return;
+  var a = t.dataset.act, id = t.dataset.id, v = t.dataset.v;
+  switch (a) {
+    case 'tab': U.tab = v; closeSheet(); render(); window.scrollTo(0, 0); break;
+    case 'go-students': U.tab = 'students'; render(); break;
+    case 'close': closeSheet(); break;
+    case 'settings': openSheet('settings'); break;
+    case 'mb': U.mb = v; render(); break;
+    case 'rb': U.rb = v; render(); break;
+    case 'sb': U.sb = v; render(); break;
+    case 'stb': U.stb = v; render(); break;
+    case 'day-prev': U.date = addDays(U.date, -1); render(); break;
+    case 'day-next': if (U.date < TODAY) U.date = addDays(U.date, 1); render(); break;
+    case 'reg-prev': U.rm = addMonths(U.rm, -1); render(); break;
+    case 'reg-next': if (U.rm < CUR) U.rm = addMonths(U.rm, 1); render(); break;
+    case 'send-prev': U.sm = addMonths(U.sm, -1); render(); break;
+    case 'send-next': if (U.sm < CUR) U.sm = addMonths(U.sm, 1); render(); break;
+    case 'reg-day': U.date = t.dataset.d; U.mb = U.rb; U.tab = 'mark'; render(); window.scrollTo(0, 0); break;
+    case 'mark': {
+      var day = D.att[U.date] = D.att[U.date] || {};
+      if (day[id] === v) delete day[id]; else day[id] = v;
+      if (!Object.keys(day).length) delete D.att[U.date];
+      save(); render(); break;
+    }
+    case 'all-present': {
+      var dd = D.att[U.date] = D.att[U.date] || {}, n = 0;
+      D.students.forEach(function (s) { if (onRoll(s, U.date) && inBatch(s, U.mb) && !dd[s.id]) { dd[s.id] = 'P'; n++; } });
+      save(); render(); toast(n + ' marked present'); break;
+    }
+    case 'csv': {
+      var nm = (U.rb === 'all' ? 'all-batches' : batchName(U.rb).toLowerCase().replace(/[^a-z0-9]+/g, '-')) + '-' + U.rm;
+      if (download('attendance-' + nm + '.csv', csvFor(U.rm, U.rb), 'text/csv;charset=utf-8')) toast('Downloaded. It opens in Excel or Google Sheets.');
+      break;
+    }
+    case 'open-send': openSend(id); break;
+    case 'lang': if (U.draft) { U.draft.lang = v; renderSheet(); } break;
+    case 'copy-msg': { var s0 = byId(U.sheet.id); if (s0) copyText(parentMsg(s0, U.sm, U.draft.note, U.draft.lang)); break; }
+    case 'sent': {
+      var s1 = U.sheet && byId(U.sheet.id);
+      if (!s1 || !s1.phone) { e.preventDefault(); break; }
+      t.href = waLink(s1.phone, parentMsg(s1, U.sm, U.draft.note, U.draft.lang));
+      (D.sent[U.sm] = D.sent[U.sm] || {})[s1.id] = TODAY; save();
+      setTimeout(function () { renderSheet(); render(); }, 400);
+      break;
+    }
+    case 'add-student': openSheet('student', {}); setTimeout(function () { var f = $('#f-name'); if (f) f.focus(); }, 50); break;
+    case 'add-many': openSheet('many'); break;
+    case 'edit-student': openSheet('student', {id: id}); break;
+    case 'ask-delete': U.confirm = true; renderSheet(); break;
+    case 'cancel-confirm': U.confirm = false; renderSheet(); break;
+    case 'delete-student': {
+      var ds = byId(id); D.students = D.students.filter(function (s) { return s.id !== id; }); save(); closeSheet(); render(); if (ds) toast(ds.name + ' removed'); break;
+    }
+    case 'add-batch': $('#batch-rows').insertAdjacentHTML('beforeend', batchRow({id: rid('b'), name: '', time: ''})); $('#batch-rows .batch-row:last-child input').focus(); break;
+    case 'rm-batch': t.closest('.batch-row').remove(); break;
+    case 'st-lang': $('#st-en').setAttribute('aria-pressed', String(v === 'en')); $('#st-hi').setAttribute('aria-pressed', String(v === 'hi')); break;
+    case 'backup': backup(); break;
+    case 'install': {
+      if (!INST.prompt) { toast(installHow()); break; }
+      var pr = INST.prompt; INST.prompt = null;
+      pr.prompt();
+      pr.userChoice.then(function (c) { if (c && c.outcome === 'accepted') toast('Installing… the icon will appear on your home screen.'); render(); if (U.sheet && U.sheet.type === 'settings') renderSheet(); });
+      break;
+    }
+    case 'install-later': try { localStorage.setItem(LATER_KEY, TODAY); } catch (x) {} render(); break;
+    case 'restore': $('#restore-file').value = ''; $('#restore-file').click(); break;
+    case 'cancel-restore': delete U.sheet.restore; renderSheet(); break;
+    case 'do-restore': {
+      D = fix(U.sheet.restore.data); save(); delete U.sheet.restore; closeSheet(); render(); toast('Backup restored: ' + D.students.length + ' students'); break;
+    }
+  }
+});
+document.addEventListener('submit', function (e) {
+  e.preventDefault();
+  var f = e.target;
+  if (f.id === 'f-student') {
+    var name = $('#f-name').value.trim();
+    if (!name) { toast('Enter the player’s name.'); $('#f-name').focus(); return; }
+    var rec = {name: name, batch: $('#f-batch').value, joined: $('#f-joined').value || TODAY, parentName: $('#f-pname').value.trim(), phone: $('#f-phone').value.trim()};
+    if (f.dataset.id) { Object.assign(byId(f.dataset.id), rec); toast('Saved'); }
+    else { rec.id = rid('s'); D.students.push(rec); toast(name + ' added'); }
+    save(); closeSheet(); render();
+  } else if (f.id === 'f-many') {
+    var b = $('#m-batch').value, added = 0;
+    $('#m-text').value.split(/\r?\n/).forEach(function (line) {
+      line = line.trim(); if (!line) return;
+      var ph = (line.match(/(\+?\d[\d\s-]{8,}\d)/) || [''])[0], nm = line.replace(ph, '').replace(/[,;|\t-]+\s*$/, '').replace(/^\d+[.)]\s*/, '').replace(/[,;|\t]+/g, ' ').trim();
+      if (!nm) return;
+      D.students.push({id: rid('s'), name: nm, batch: b, joined: TODAY, parentName: '', phone: ph.trim()}); added++;
+    });
+    if (!added) { toast('Paste at least one name.'); return; }
+    save(); closeSheet(); U.stb = b || 'all'; render(); toast(added + ' students added to ' + batchName(b));
+  } else if (f.id === 'f-settings') {
+    var batches = [];
+    f.querySelectorAll('.batch-row').forEach(function (r) { var ins = r.querySelectorAll('input'), n = ins[0].value.trim(); if (n) batches.push({id: r.dataset.bid, name: n, time: ins[1].value.trim()}); });
+    D.academy = $('#st-name').value.trim() || 'My academy';
+    D.batches = batches;
+    D.lang = $('#st-hi').getAttribute('aria-pressed') === 'true' ? 'hi' : 'en';
+    save(); closeSheet(); render(); toast('Settings saved');
+  }
+});
+document.addEventListener('input', function (e) {
+  if (e.target.id === 'q') { U.q = e.target.value; renderStudents(); }
+  else if (e.target.id === 's-note' && U.draft && U.sheet) {
+    U.draft.note = e.target.value;
+    (D.notes[U.sm] = D.notes[U.sm] || {})[U.sheet.id] = e.target.value; save();
+    updatePreview();
+  }
+});
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'd-input' && e.target.value) { U.date = e.target.value > TODAY ? TODAY : e.target.value; render(); }
+  else if (e.target.id === 'restore-file') {
+    var file = e.target.files && e.target.files[0]; if (!file) return;
+    var fr = new FileReader();
+    fr.onload = function () {
+      try {
+        var data = JSON.parse(fr.result);
+        if (!data || !Array.isArray(data.students) || typeof data.att !== 'object') throw new Error('bad');
+        if (!U.sheet || U.sheet.type !== 'settings') openSheet('settings');
+        U.sheet.restore = {data: fix(data), when: data.lastBackup ? fmtDate(data.lastBackup) : file.name};
+        renderSheet(); $('#sheet').scrollTop = 99999;
+      } catch (x) { toast('That file isn’t a backup from this app.'); }
+    };
+    fr.readAsText(file);
+  }
+});
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && U.sheet) closeSheet(); });
+
+/* ================= start ================= */
+$('#btn-settings').innerHTML = ic('gear', 20);
+$('#d-prev').innerHTML = $('#r-prev').innerHTML = $('#s-prev').innerHTML = ic('left', 20);
+$('#d-next').innerHTML = $('#r-next').innerHTML = $('#s-next').innerHTML = ic('right', 20);
+[['mark', 'check', 'Mark'], ['reg', 'grid', 'Register'], ['send', 'send', 'WhatsApp'], ['students', 'users', 'Students']].forEach(function (x) { $('#t-' + x[0]).innerHTML = ic(x[1], 22) + '<span>' + x[2] + '</span>'; });
+render();
+})();
+</script>
+</body>
+</html>
