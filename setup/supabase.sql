@@ -2,6 +2,7 @@
 -- Everything lives in the private schema "ps". The app can only call public.api(),
 -- which checks the academy code, the 4-digit PIN and a 12-hour session token.
 -- Forgot the PIN?  Run:  select ps.reset_pin();   (Supabase dashboard → SQL editor)
+-- Note: Supabase blocks DELETE without WHERE when called through the app, so every delete names its rows.
 
 create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
@@ -55,7 +56,7 @@ create or replace function ps.reset_pin() returns text language plpgsql as $$
 begin
   delete from ps.secrets where k in ('pin_hash', 'token_secret');
   insert into ps.secrets values ('pin_ver', (coalesce(ps.sec('pin_ver'), '0')::int + 1)::text) on conflict (k) do update set v = excluded.v;
-  delete from ps.fails;
+  delete from ps.fails where id = 1;
   return 'PIN removed. Open the app and create a new 4-digit PIN.';
 end $$;
 
@@ -148,7 +149,7 @@ begin
       returning cnt into v;
       return jsonb_build_object('ok', false, 'error', 'wrong', 'left', greatest(0, 5 - v));
     end if;
-    delete from ps.fails;
+    delete from ps.fails where id = 1;
     return jsonb_build_object('ok', true, 'token', ps.make_token(), 'pinVer', ps.sec('pin_ver')::int);
   end if;
 

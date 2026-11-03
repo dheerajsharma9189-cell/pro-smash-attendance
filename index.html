@@ -358,7 +358,7 @@ window.addEventListener('storage', function (e) { if (e.key === KEY) { try { D =
 var CONN_KEY = 'proSmashAttendance.conn', OUT_KEY = 'proSmashAttendance.outbox', LPIN_KEY = 'proSmashAttendance.localPin';
 /* The academy's online database (Supabase). This address and public key only reach one locked function;
    nothing can be read without the academy code and the PIN. */
-var SB = {url: '@@SB_URL@@', key: '@@SB_KEY@@'};
+var SB = {url: 'https://qgwxizkldcubiuzjcppd.supabase.co', key: 'sb_publishable_l6xTw-dTubi6ijOe2LZTiQ_Y4BVy5hd'};
 function sbReady() { return /^https:\/\//.test(SB.url) && SB.key.length > 20; }
 function normCode(c) { c = String(c || '').trim().toUpperCase().replace(/\s+/g, ''); return /^PS(-[A-Z0-9]{4}){3}$/.test(c) ? c : ''; }
 var APP_URL = location.href.split('#')[0].split('?')[0];
