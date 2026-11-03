@@ -1,5 +1,5 @@
 /* Keeps the app working without internet. Your attendance data is not stored here; it stays in the app's own storage on the phone. */
-var CACHE = 'pro-smash-v2';
+var CACHE = 'pro-smash-v3';
 var FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));

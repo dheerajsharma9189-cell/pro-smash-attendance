@@ -356,6 +356,11 @@ window.addEventListener('storage', function (e) { if (e.key === KEY) { try { D =
 
 /* ================= shared register (Google Sheet) + PIN lock ================= */
 var CONN_KEY = 'proSmashAttendance.conn', OUT_KEY = 'proSmashAttendance.outbox', LPIN_KEY = 'proSmashAttendance.localPin';
+/* The academy's online database (Supabase). This address and public key only reach one locked function;
+   nothing can be read without the academy code and the PIN. */
+var SB = {url: '@@SB_URL@@', key: '@@SB_KEY@@'};
+function sbReady() { return /^https:\/\//.test(SB.url) && SB.key.length > 20; }
+function normCode(c) { c = String(c || '').trim().toUpperCase().replace(/\s+/g, ''); return /^PS(-[A-Z0-9]{4}){3}$/.test(c) ? c : ''; }
 var APP_URL = location.href.split('#')[0].split('?')[0];
 function readJSON(k, d) { try { var v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } }
 function writeJSON(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -363,7 +368,7 @@ var CONN = readJSON(CONN_KEY, null);          // {url, verifier:{salt,hash,ver},
 var OUTBOX = readJSON(OUT_KEY, []);           // changes waiting to reach the Google Sheet
 var LPIN = readJSON(LPIN_KEY, null);          // {salt, hash} when used on this phone only
 var SES = {unlocked: false, token: null, pin: null, online: null, hiddenAt: 0, flushing: false};
-function shared() { return !!(CONN && CONN.url); }
+function shared() { return !!(CONN && (CONN.url || CONN.code)); }
 function saveConn() { writeJSON(CONN_KEY, CONN); }
 function saveOutbox() { writeJSON(OUT_KEY, OUTBOX.map(function (o) { return {action: o.action, data: o.data, id: o.id}; })); }
 function validExec(u) { return /^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[A-Za-z0-9_-]{20,}\/exec\/?$/.test(String(u || '').trim()); }
@@ -387,11 +392,27 @@ function makeVerifier(pin, ver) { var salt = rid('v'); return hashPin(pin, salt)
 function checkVerifier(v, pin) { return v ? hashPin(pin, v.salt).then(function (h) { return h === v.hash; }) : Promise.resolve(false); }
 
 /* talking to the Google Sheet connector */
-function api(action, data, url) {
+function api(action, data, url, code) {
   var ctl = window.AbortController ? new AbortController() : null, timer = ctl ? setTimeout(function () { ctl.abort(); }, 25000) : 0;
-  return fetch(url || CONN.url, {method: 'POST', body: JSON.stringify({action: action, token: SES.token, data: data || {}}), signal: ctl ? ctl.signal : undefined, redirect: 'follow'})
+  var useSb = !!code || (!url && CONN && CONN.code), endpoint, opts;
+  if (useSb) {
+    var headers = {'apikey': SB.key, 'Content-Type': 'application/json'};
+    if (/^eyJ/.test(SB.key)) headers.Authorization = 'Bearer ' + SB.key;
+    endpoint = SB.url + '/rest/v1/rpc/api';
+    opts = {method: 'POST', headers: headers, body: JSON.stringify({req: {action: action, token: SES.token, key: code || CONN.code, data: data || {}}})};
+  } else {
+    endpoint = url || CONN.url;
+    opts = {method: 'POST', body: JSON.stringify({action: action, token: SES.token, data: data || {}}), redirect: 'follow'};
+  }
+  if (ctl) opts.signal = ctl.signal;
+  return fetch(endpoint, opts)
     .then(function (res) { return res.text(); }, function () { throw {error: 'network'}; })
-    .then(function (txt) { clearTimeout(timer); try { return JSON.parse(txt); } catch (e) { throw {error: 'bad_link'}; } });
+    .then(function (txt) {
+      clearTimeout(timer);
+      var r; try { r = JSON.parse(txt); } catch (e) { throw {error: useSb ? 'network' : 'bad_link'}; }
+      if (!r || typeof r.ok !== 'boolean') throw {error: useSb ? 'network' : 'bad_link'};
+      return r;
+    });
 }
 function getToken() {
   if (!SES.pin) return Promise.reject({error: 'no_pin_in_memory'});
@@ -521,7 +542,14 @@ function lockApp(msg) {
 function gateLogo() { return '<img class="gate-logo" src="icon-192.png" alt="" onerror="this.remove()">'; }
 function renderGate() {
   var el = $('#gate-in'), h = '';
-  if (G.screen === 'welcome') {
+  if (G.screen === 'welcome' && sbReady()) {
+    h = gateLogo() + '<h2>Pro Smash Attendance</h2><p class="lead">Enter your academy code to open the shared register. The owner has it.</p>' +
+      '<input class="inp" id="g-join" placeholder="Academy code, e.g. PS-ABCD-1234-WXYZ" autocomplete="off" autocapitalize="characters" spellcheck="false" style="text-align:center;font-weight:700;letter-spacing:.04em">' +
+      (G.msg ? '<p class="pin-msg" role="alert">' + esc(G.msg) + '</p>' : '') +
+      '<button class="btn primary block" data-act="g-join-go"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'Connecting…' : 'Open register') + '</button>' +
+      '<p class="hint" style="text-align:center">Got an invite link on WhatsApp? Just open it, and the code fills in by itself.</p>' +
+      '<button class="choice" data-act="g-local" style="margin-top:12px"><b>Use on this phone only</b><span>No sharing. Data stays on this phone, protected by a PIN.</span></button>';
+  } else if (G.screen === 'welcome') {
     h = gateLogo() + '<h2>Pro Smash Attendance</h2><p class="lead">How will you use this app?</p>' +
       '<button class="choice main" data-act="g-owner"><b>I’m the owner. Set up the shared register.</b><span>One register for all staff, saved in a Google Sheet on your Gmail. Takes about 5 minutes on a computer.</span></button>' +
       '<button class="choice" data-act="g-join"><b>I’m staff. I have an invite link.</b><span>Open the link the owner sent you on WhatsApp, or paste it here.</span></button>' +
@@ -535,8 +563,16 @@ function renderGate() {
         '<textarea class="code-box" id="g-code" readonly spellcheck="false" aria-label="Connector code" style="margin-top:8px">' + esc(G.code || 'Loading…') + '</textarea></li>' +
       '<li><b>Deploy it</b>Click <b>Deploy → New deployment</b>, the gear icon → <b>Web app</b>. Set <b>Execute as: Me</b> and <b>Who has access: Anyone</b>. Click <b>Deploy</b>, then <b>Authorize access</b> → your Gmail → <b>Advanced</b> → <b>Go to … (unsafe)</b> → <b>Allow</b>.</li>' +
       '<li><b>Paste the Web app link here</b>It starts with https://script.google.com/macros/s/ and ends with /exec.' +
-        '<input class="inp" id="g-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" style="margin-top:8px"></li></ol>' +
+        '<input class="inp" id="g-url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" style="margin-top:8px" value="' + esc(G.url || '') + '"></li></ol>' +
       (G.msg ? '<p class="pin-msg" role="alert">' + esc(G.msg) + '</p>' : '') +
+      (G.testUrl ? '<div class="card" style="display:grid;gap:10px;border-color:var(--warn);background:var(--warn-soft)"><b>Check your link in 10 seconds</b>' +
+        '<a class="btn primary" href="' + esc(G.testUrl) + '" target="_blank" rel="noopener">Test my link (opens a new tab)</a>' +
+        '<ol class="steps-list">' +
+        '<li><b>You see a line starting with {"ok":true</b>The link works. Come back here and tap Connect again.</li>' +
+        '<li><b>You see a Google sign-in page, or “You need access”</b>Access isn’t set to Anyone. In Apps Script: <b>Deploy → Manage deployments → pencil</b> ✏️ → <b>Who has access: Anyone</b> → <b>Deploy</b>. Same link, try again.</li>' +
+        '<li><b>You see “Script function not found: doGet”</b>The code wasn’t saved before deploying. Paste the code again, press <b>Ctrl+S</b>, then <b>Deploy → Manage deployments → pencil</b> ✏️ → <b>Version: New version</b> → <b>Deploy</b>.</li>' +
+        '<li><b>Google asks for permission</b>Choose your second Gmail → <b>Advanced</b> → <b>Go to … (unsafe)</b> → <b>Allow</b>. Then tap Connect again.</li>' +
+        '</ol></div>' : '') +
       '<button class="btn primary block" data-act="g-connect"' + (G.busy ? ' disabled' : '') + '>' + (G.busy ? 'Connecting…' : 'Connect') + '</button>';
   } else if (G.screen === 'join') {
     h = '<button class="btn ghost small" data-act="g-welcome" style="align-self:flex-start">' + ic('back', 16) + ' Back</button>' +
@@ -560,7 +596,8 @@ function renderGate() {
       '<div class="pad">' + keys + '</div></div>';
   } else if (G.screen === 'forgot') {
     h = '<button class="btn ghost small" data-act="g-back-pin" style="align-self:flex-start">' + ic('back', 16) + ' Back</button><h2>Forgot the PIN?</h2>' +
-      (shared() ? '<ol class="steps-list"><li><b>Staff</b>Ask the owner for the PIN.</li><li><b>Owner</b>On a computer, open script.google.com with your second Gmail and open the Pro Smash project. Choose <b>resetPin</b> in the function list at the top and press <b>Run</b>. The next time anyone opens the app, it asks for a new PIN. No attendance is lost.</li></ol>'
+      (shared() && CONN.code ? '<ol class="steps-list"><li><b>Staff</b>Ask the owner for the PIN.</li><li><b>Owner</b>Ask Claude to “reset the Pro Smash PIN”. Or on supabase.com, open your project → SQL Editor, type <b>select ps.reset_pin();</b> and press Run. The next time anyone opens the app, it asks for a new PIN. No attendance is lost.</li></ol>'
+      : shared() ? '<ol class="steps-list"><li><b>Staff</b>Ask the owner for the PIN.</li><li><b>Owner</b>On a computer, open script.google.com with your second Gmail and open the Pro Smash project. Choose <b>resetPin</b> in the function list at the top and press <b>Run</b>. The next time anyone opens the app, it asks for a new PIN. No attendance is lost.</li></ol>'
         : '<p class="lead">This phone’s PIN can’t be recovered. You can start fresh and restore your last backup file.</p><button class="btn danger-solid block" data-act="g-wipe">Delete everything on this phone and start fresh</button>');
   } else h = '<p class="lead" style="margin-top:40vh">Opening…</p>';
   el.innerHTML = h;
@@ -606,10 +643,37 @@ function submitPin(pin) {
     });
   });
 }
+function connectCode(code) {
+  G.busy = true; G.msg = ''; renderGate();
+  api('hello', {}, null, code).then(function (r) {
+    G.busy = false;
+    if (!r.ok) { G.msg = r.error === 'bad_key' ? 'That academy code isn’t right. Check it with the owner.' : 'Couldn’t open the register (' + r.error + ').'; renderGate(); return; }
+    var hadLocal = D.students.length > 0 && !shared();
+    CONN = {code: code, extra: {}}; saveConn();
+    if (!r.hasPin) {
+      G.importOffer = hadLocal && r.empty;
+      G.screen = 'pin'; G.mode = 'create'; G.msg = ''; G.info = 'Connected. Create the academy PIN.'; renderGate(); return;
+    }
+    G.importOffer = false;
+    if (hadLocal) { OUTBOX = []; saveOutbox(); }
+    G.screen = 'pin'; G.mode = 'enter'; G.msg = ''; G.info = r.academy ? 'Joining ' + r.academy : ''; renderGate();
+  }, function () { G.busy = false; G.msg = 'Couldn’t connect. Check the internet and try again.'; renderGate(); });
+}
 function connectTo(url, fromJoin) {
   url = String(url || '').trim();
   var m = url.match(/#join=(.+)$/); if (m) url = decodeURIComponent(m[1]);
-  if (!validExec(url)) { G.msg = fromJoin ? 'That isn’t a Pro Smash invite link. Ask the owner to send it again.' : 'That doesn’t look like a Web app link. It should end with /exec.'; renderGate(); return; }
+  var code = normCode(url);
+  if (code && sbReady()) { connectCode(code); return; }
+  if (sbReady() && !validExec(url)) { G.msg = 'That academy code isn’t right. It looks like PS-ABCD-1234-WXYZ.'; renderGate(); return; }
+  if (!fromJoin) G.url = url;
+  G.testUrl = '';
+  if (!validExec(url)) {
+    G.msg = fromJoin ? 'That isn’t a Pro Smash invite link. Ask the owner to send it again.'
+      : /\/dev\/?$/.test(url) ? 'That’s the test link (ends in /dev). Use the Web app link from Deploy → Manage deployments. It ends in /exec.'
+      : /script\.google\.com\/(home|d)\//.test(url) ? 'That’s the editor’s address. Use the Web app link from Deploy → Manage deployments. It ends in /exec.'
+      : 'That doesn’t look like a Web app link. It should start with https://script.google.com/macros/s/ and end with /exec.';
+    renderGate(); return;
+  }
   G.busy = true; G.msg = ''; renderGate();
   api('hello', {}, url).then(function (r) {
     G.busy = false;
@@ -626,11 +690,13 @@ function connectTo(url, fromJoin) {
     G.screen = 'pin'; G.mode = 'enter'; G.msg = ''; G.info = r.academy ? 'Joining ' + r.academy : ''; renderGate();
   }, function (e) {
     G.busy = false;
-    G.msg = e && e.error === 'bad_link' ? 'That link didn’t answer correctly. In Deploy, make sure “Who has access” is set to Anyone.' : 'Couldn’t reach the link. Check the internet and the link, then try again.';
+    G.msg = navigator.onLine === false ? 'You’re offline. Connect to the internet and tap Connect again.'
+      : 'Google didn’t let the app use this link yet. Tap “Test my link” below to see why. It’s usually a 1-minute fix.';
+    if (!fromJoin) G.testUrl = url;
     renderGate();
   });
 }
-function inviteLink() { return APP_URL + '#join=' + CONN.url; }
+function inviteLink() { return APP_URL + '#join=' + (CONN.code || CONN.url); }
 
 /* ---------- QR code (byte mode, level M, versions 1-10) for the staff invite ---------- */
 var QR_ECC = [-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26], QR_BLK = [-1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5];
@@ -706,7 +772,8 @@ function inviteSheet() {
   var link = inviteLink(), msg = 'Pro Smash attendance app for staff:\n' + link + '\n\nOpen the link, tap Install, then enter the academy PIN (I’ll tell you the PIN separately).';
   return head('Invite staff') +
     '<p class="hint">Staff scan this code or open the link, install the app, and enter the PIN. Share the PIN separately, by call or in person.</p>' +
-    '<div class="qr-wrap"><canvas id="qr" aria-label="Invite QR code"></canvas><div class="link-box">' + esc(link) + '</div></div>' +
+    '<div class="qr-wrap"><canvas id="qr" aria-label="Invite QR code"></canvas><div class="link-box">' + esc(link) + '</div>' +
+    (CONN.code ? '<p class="hint" style="text-align:center">Or they open <b>tinyurl.com/prosmash-login</b> and type the academy code:<br><b style="font-size:20px;letter-spacing:.05em;color:var(--ink)">' + esc(CONN.code) + '</b></p>' : '') + '</div>' +
     '<div class="btn-row"><a class="btn wa" style="flex:1" href="' + esc(waAny(msg)) + '" target="_blank" rel="noopener">' + ic('wa', 18) + ' Send on WhatsApp</a><button class="btn" style="flex:1" data-act="copy-invite">' + ic('copy', 16) + ' Copy link</button></div>' +
     '<p class="hint">Only send this link to your staff. Anyone with the link and the PIN can open the register.</p>';
 }
@@ -1064,7 +1131,7 @@ function settingsSheet() {
     '<div class="actions"><button type="button" class="btn" data-act="close">Cancel</button><button type="submit" class="btn primary">Save settings</button></div></form>';
   if (shared()) {
     h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Shared register</h3>' +
-      '<p class="hint">All staff phones see the same register. Everything is saved in the Google Sheet “Pro Smash Attendance (data)” on the owner’s Gmail. ' +
+      '<p class="hint">All staff phones see the same register. ' + (CONN.code ? 'Everything is saved in the academy’s private online database (Supabase). Academy code: <b>' + esc(CONN.code) + '</b>. ' : 'Everything is saved in the Google Sheet “Pro Smash Attendance (data)” on the owner’s Gmail. ') +
       (OUTBOX.length ? '<b>' + OUTBOX.length + ' change' + (OUTBOX.length === 1 ? '' : 's') + ' waiting to be saved online.</b>' : 'All changes are saved online.') + '</p>' +
       '<div class="btn-row"><button class="btn primary" data-act="invite" style="flex:1">Invite staff</button>' + (CONN.sheetUrl ? '<a class="btn" style="flex:1" href="' + esc(CONN.sheetUrl) + '" target="_blank" rel="noopener">Open Google Sheet</a>' : '') + '</div></div>';
   }
@@ -1076,7 +1143,7 @@ function settingsSheet() {
       : '<p class="hint">Everything is saved inside this browser on this phone. Download a backup every month and keep it in Google Drive or WhatsApp “Message yourself”.</p>') +
     '<p class="hint">Last backup: <b>' + (D.lastBackup ? esc(fmtDate(D.lastBackup)) : 'never') + '</b> · ' + D.students.length + ' students · ' + Object.keys(D.att).length + ' days of attendance' + (shared() ? '' : ' · ' + Math.max(1, Math.round(bytes / 1024)) + ' KB of about 5,000 KB') + '</p>' +
     '<div class="btn-row"><button class="btn primary" data-act="backup" style="flex:1">' + ic('down', 18) + ' Download backup</button>' + (shared() ? '' : '<button class="btn" data-act="restore" style="flex:1">' + ic('up', 18) + ' Restore backup</button>') + '</div></div>';
-  if (!shared()) h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Share with staff</h3><p class="hint">Right now this phone keeps its own register. Connect a Google Sheet so all staff see and mark the same register.</p><button class="btn primary" data-act="g-owner-from-settings">Set up shared register</button></div>';
+  if (!shared()) h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">Share with staff</h3><p class="hint">Right now this phone keeps its own register. ' + (sbReady() ? 'Enter the academy code to join the shared register, so all staff see and mark the same attendance.' : 'Connect a Google Sheet so all staff see and mark the same register.') + '</p><button class="btn primary" data-act="g-owner-from-settings">' + (sbReady() ? 'Join with academy code' : 'Set up shared register') + '</button></div>';
   else h += '<div class="card" style="display:grid;gap:10px"><h3 style="font-size:17px">This phone</h3><p class="hint">Disconnecting removes the register from this phone only. Everything stays in the Google Sheet, and you can join again with the invite link.</p>' +
     (U.confirm ? '<div class="confirm"><p><b>Disconnect this phone?</b>' + (OUTBOX.length ? ' ' + OUTBOX.length + ' changes haven’t been saved online yet and will be lost.' : '') + '</p><div class="btn-row"><button class="btn" data-act="cancel-confirm">Keep connected</button><button class="btn danger-solid" data-act="do-disconnect">Disconnect</button></div></div>'
       : '<button class="btn danger" data-act="ask-disconnect">Disconnect this phone</button>') + '</div>';
@@ -1167,7 +1234,7 @@ document.addEventListener('click', function (e) {
       CONN = null; saveConn(); OUTBOX = []; saveOutbox(); D = blank(); save(); SES.token = null; closeSheet();
       G.screen = 'welcome'; G.msg = ''; SES.unlocked = false; showGate(); updateSync(); break;
     }
-    case 'g-owner-from-settings': closeSheet(); G.screen = 'owner'; G.msg = ''; SES.unlocked = false; showGate(); break;
+    case 'g-owner-from-settings': closeSheet(); G.screen = sbReady() ? 'welcome' : 'owner'; G.msg = ''; SES.unlocked = false; showGate(); break;
     case 'g-welcome': G.screen = 'welcome'; G.msg = ''; renderGate(); break;
     case 'g-owner': G.screen = 'owner'; G.msg = ''; renderGate(); break;
     case 'g-join': G.screen = 'join'; G.msg = ''; renderGate(); break;
@@ -1311,8 +1378,8 @@ render();
   if (j) {
     try { history.replaceState(null, '', APP_URL); } catch (x) {}
     var link = decodeURIComponent(j[1]);
-    if (shared() && CONN.url === link.replace(/\/$/, '')) { lockApp(); return; }
-    G.screen = 'join'; showGate(); var inp = $('#g-join'); if (inp) inp.value = link;
+    if (shared() && ((CONN.url && CONN.url === link.replace(/\/$/, '')) || (CONN.code && CONN.code === normCode(link)))) { lockApp(); return; }
+    G.screen = sbReady() ? 'welcome' : 'join'; showGate(); var inp = $('#g-join'); if (inp) inp.value = normCode(link) || link;
     connectTo(link, true); return;
   }
   if (shared()) { lockApp(); return; }
