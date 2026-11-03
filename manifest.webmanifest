@@ -1,6 +1,6 @@
 {
   "name": "Pro Smash Attendance",
-  "short_name": "Attendance",
+  "short_name": "Pro Smash",
   "description": "Attendance register and WhatsApp reports for Pro Smash Badminton Academy",
   "start_url": "./",
   "scope": "./",
